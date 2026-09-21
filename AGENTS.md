@@ -29,7 +29,10 @@ The workspace contains **research material** (cloned/downloaded during design) p
 The whole `ANALYSIS/` directory is research material, **not** part of the
 module: it is listed in the repository `.gitignore` and is never committed or
 published. It can be deleted at any time without affecting the build or the
-tests. If it is gone, restore each piece from its upstream source:
+tests. **Restore the pieces only when they are actually needed** for the task
+at hand (for example the 1.6.0 source when verifying a REST endpoint, or the
+legacy module when studying an anti-pattern) — do not re-download everything
+up front. If a piece is gone, restore it from its upstream source:
 
 | Path | Source | How to restore |
 |---|---|---|
@@ -42,6 +45,11 @@ When restoring, re-verify that the extracted tree contains the key files cited
 above (the `rest/**` package, `ConfiguredGuacamoleSocket.java`, and the
 `guacamole-ext/.../protocols/*.json` schemas) — the module's verification rule
 (§6) depends on them.
+
+After cloning a git repository into `ANALYSIS/`, **remove the nested `.git`
+directory** (for example `Remove-Item -Recurse -Force
+ANALYSIS/guacamole-powershell/.git`) so that nested repositories do not
+interfere with the outer repository's tooling.
 
 ### Module layout (Phase 1, current)
 

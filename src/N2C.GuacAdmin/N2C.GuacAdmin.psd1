@@ -14,11 +14,17 @@
     CompatiblePSEditions = @('Desktop', 'Core')
 
     # Public surface (phase 1: authentication/session lifecycle; phase 2:
-    # connections and connection groups)
+    # entity CRUD, permissions/membership, history, schemas)
     FunctionsToExport = @(
         'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession',
         'Get-GuacConnection', 'New-GuacConnection', 'Update-GuacConnection', 'Remove-GuacConnection',
-        'Get-GuacConnectionGroup', 'New-GuacConnectionGroup', 'Update-GuacConnectionGroup', 'Remove-GuacConnectionGroup'
+        'Get-GuacConnectionGroup', 'New-GuacConnectionGroup', 'Update-GuacConnectionGroup', 'Remove-GuacConnectionGroup',
+        'Get-GuacUser', 'New-GuacUser', 'Update-GuacUser', 'Remove-GuacUser', 'Set-GuacUserPassword',
+        'Get-GuacUserGroup', 'New-GuacUserGroup', 'Update-GuacUserGroup', 'Remove-GuacUserGroup',
+        'Get-GuacSharingProfile', 'New-GuacSharingProfile', 'Update-GuacSharingProfile', 'Remove-GuacSharingProfile',
+        'Add-GuacPermission', 'Remove-GuacPermission',
+        'Add-GuacUserGroupMember', 'Remove-GuacUserGroupMember', 'Add-GuacUserGroupChildGroup', 'Remove-GuacUserGroupChildGroup',
+        'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol'
     )
 
     # Class definitions (N2C_GuacAdmin_GuacSession, N2C_GuacAdmin_GuacRestException).

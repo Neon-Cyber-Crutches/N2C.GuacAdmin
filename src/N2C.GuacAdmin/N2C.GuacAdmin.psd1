@@ -13,8 +13,13 @@
     PowerShellVersion = '5.1'
     CompatiblePSEditions = @('Desktop', 'Core')
 
-    # Public surface (phase 1: authentication/session lifecycle)
-    FunctionsToExport = @('New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession')
+    # Public surface (phase 1: authentication/session lifecycle; phase 2:
+    # connections and connection groups)
+    FunctionsToExport = @(
+        'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession',
+        'Get-GuacConnection', 'New-GuacConnection', 'Update-GuacConnection', 'Remove-GuacConnection',
+        'Get-GuacConnectionGroup', 'New-GuacConnectionGroup', 'Update-GuacConnectionGroup', 'Remove-GuacConnectionGroup'
+    )
 
     # Class definitions (N2C_GuacAdmin_GuacSession, N2C_GuacAdmin_GuacRestException).
     # ScriptsToProcess runs the script in a caller-visible scope, making the

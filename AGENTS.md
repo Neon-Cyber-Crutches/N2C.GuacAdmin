@@ -24,6 +24,25 @@ The workspace contains **research material** (cloned/downloaded during design) p
 | [`ANALYSIS/guacamole-powershell/`](ANALYSIS/guacamole-powershell/README.md) | Legacy UpperM/PSGuacamole module (v1.0.4) — **anti-reference**: study its problems (see §4), reuse only its correct patterns |
 | [`api-documentation.html`](ANALYSIS/api-documentation.html) | Saved copy of guacamole.apache.org/api-documentation — this is the **Java API** docs, not REST |
 
+### Restoring the ANALYSIS/ research material
+
+The whole `ANALYSIS/` directory is research material, **not** part of the
+module: it is listed in the repository `.gitignore` and is never committed or
+published. It can be deleted at any time without affecting the build or the
+tests. If it is gone, restore each piece from its upstream source:
+
+| Path | Source | How to restore |
+|---|---|---|
+| `ANALYSIS/guacamole-client-1.6.0/` | [Apache Guacamole 1.6.0 source release](https://guacamole.apache.org/download/1.6.0/) (the authoritative reference) | The original distribution archive is kept alongside the extracted source as `ANALYSIS/guacamole-client-1.6.0.tar.gz`; extract it into `ANALYSIS/` (`tar -xzf ANALYSIS/guacamole-client-1.6.0.tar.gz -C ANALYSIS/`). If the archive itself is missing, download it again from the Apache archive: `https://archive.apache.org/dist/guacamole/1.6.0/source/guacamole-client-1.6.0.tar.gz` |
+| `ANALYSIS/guacamole-rest-api-documentation/` | [ridvanaltun/guacamole-rest-api-documentation](https://github.com/ridvanaltun/guacamole-rest-api-documentation) (unofficial, based on 1.1.0) | `git clone https://github.com/ridvanaltun/guacamole-rest-api-documentation ANALYSIS/guacamole-rest-api-documentation` |
+| `ANALYSIS/guacamole-powershell/` | [UpperM/guacamole-powershell](https://github.com/UpperM/guacamole-powershell) (legacy PSGuacamole v1.0.4, anti-reference) | `git clone https://github.com/UpperM/guacamole-powershell ANALYSIS/guacamole-powershell` (checkout tag `v1.0.4`) |
+| `ANALYSIS/api-documentation.html` | https://guacamole.apache.org/api-documentation/ | Save the page again from the browser (it is the Java API docs, not REST) |
+
+When restoring, re-verify that the extracted tree contains the key files cited
+above (the `rest/**` package, `ConfiguredGuacamoleSocket.java`, and the
+`guacamole-ext/.../protocols/*.json` schemas) — the module's verification rule
+(§6) depends on them.
+
 ### Module layout (Phase 1, current)
 
 [`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) follows the standard PowerShell module layout: `N2C.GuacAdmin.psd1` (manifest; `ScriptsToProcess = @('Types.ps1')` defines the two classes in caller-visible scope), `N2C.GuacAdmin.psm1` (loader), `Types.ps1`, `Public/`, `Private/`, and `Tests/` (Pester v5 + a self-contained mock Guacamole server, `Tests/GuacMockServer.ps1`, so integration tests run with no live instance). Run the suite with `src/N2C.GuacAdmin/run-tests.ps1` (`-IncludeIntegration` adds the mock-server session-lifecycle tests).

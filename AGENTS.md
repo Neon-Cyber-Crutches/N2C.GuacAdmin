@@ -14,7 +14,7 @@ The module targets **Apache Guacamole 1.6.x** (REST API + Guacamole protocol), r
 
 ## 2. Repository layout (current state)
 
-The workspace contains **research material** (cloned/downloaded during design) plus the module itself under [`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) (Phase 1 complete: scaffold, private transport, and the auth/session lifecycle cmdlets).
+The workspace contains **research material** (cloned/downloaded during design) plus the module itself under [`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) (Phases 1-3 complete: scaffold, transport, auth, entity CRUD, active sessions, tunnels, languages, patches, extensions. Phase 4 (protocol client) is next).
 
 | Path | What it is |
 |---|---|
@@ -51,9 +51,11 @@ directory** (for example `Remove-Item -Recurse -Force
 ANALYSIS/guacamole-powershell/.git`) so that nested repositories do not
 interfere with the outer repository's tooling.
 
-### Module layout (Phase 1, current)
+### Module layout (Phase 3, current)
 
 [`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) follows the standard PowerShell module layout: `N2C.GuacAdmin.psd1` (manifest; `ScriptsToProcess = @('Types.ps1')` defines the two classes in caller-visible scope), `N2C.GuacAdmin.psm1` (loader), `Types.ps1`, `Public/`, `Private/`, and `Tests/` (Pester v5 + a self-contained mock Guacamole server, `Tests/GuacMockServer.ps1`, so integration tests run with no live instance). Run the suite with `src/N2C.GuacAdmin/run-tests.ps1` (`-IncludeIntegration` adds the mock-server session-lifecycle tests).
+
+Phases 1-3 are complete (140 tests green, lint clean). Phase 4 (protocol client) is next.
 
 ## 3. Critical technical facts (do not rediscover, do not contradict)
 
@@ -121,7 +123,7 @@ Get-GuacConnection | Stop-GuacActiveConnection -Session $g   # -Session via Valu
 
 ### 5.3. Cmdlet surface (verb-noun convention with noun `Guac*`)
 
-Implemented through Phase 2 (2026-09; full detail + per-cmdlet endpoints in [`src/N2C.GuacAdmin/TODO.md`](src/N2C.GuacAdmin/TODO.md)):
+Implemented through Phase 3 (2026-09; full detail + per-cmdlet endpoints in [`src/N2C.GuacAdmin/TODO.md`](src/N2C.GuacAdmin/TODO.md)):
 
 - **Auth (Phase 1):** `New-GuacSession`, `Get-GuacSession`, `Remove-GuacSession`, `Test-GuacSession`
 - **Entities (Phase 2):** `Get/New/Update/Remove-GuacConnection`, `-GuacConnectionGroup` (`-Tree` on the Get), `-GuacUser` (`-Permissions`/`-EffectivePermissions` on the Get), `-GuacUserGroup`, `-GuacSharingProfile`
@@ -129,9 +131,9 @@ Implemented through Phase 2 (2026-09; full detail + per-cmdlet endpoints in [`sr
 - **Membership (Phase 2):** `Add/Remove-GuacUserGroupMember` (`memberUsers`), `Add/Remove-GuacUserGroupChildGroup` (`memberUserGroups`)
 - **Permissions (Phase 2):** `Add-GuacPermission` / `Remove-GuacPermission` — one cmdlet covers all subject/target kinds (`-User`/`-UserGroup` × `-Connection`/`-ConnectionGroup`/`-SharingProfile`/`-ActiveConnection`/`-System`) over `PATCH .../{users|userGroups}/{id}/permissions`
 - **Read-only (Phase 2):** `Get-GuacHistory` (per-user connections/users), `Get-GuacSchema` (attribute/parameter sets), `Get-GuacProtocol`
-- **Active sessions (REST, Phase 3 — target):** `Get-GuacActiveConnection`, `Stop-GuacActiveConnection`, `Get-GuacSharingCredential`
-- **Tunnels (read-only, Phase 3):** `Get-GuacTunnel`
-- **Extensions (Phase 3):** `Get-GuacExtension` + per-extension resources as they are discovered
+- **Active sessions (REST, Phase 3 — done):** `Get-GuacActiveConnection` (list/by id), `Stop-GuacActiveConnection` (DELETE by id, SupportsShouldProcess), `Get-GuacSharingCredential` (requires `-SharingProfile`)
+- **Tunnels (read-only, Phase 3 — done):** `Get-GuacTunnel` (list of tunnel UUIDs)
+- **Languages/Patches/Extensions (Phase 3 — done):** `Get-GuacLanguage`, `Get-GuacPatches`, `Get-GuacExtension`
 - **Protocol (sessions, Phase 4):** `New-GuacActiveSession` (opens WebSocket tunnel + handshake, returns `[GuacActiveSession]` with Id + instruction channel), `Remove-GuacActiveSession` (graceful `disconnect`), low-level `Send-GuacInstruction` / `Receive-GuacInstruction`
 - `Update-*` cmdlets accept a JSON Patch operations array (`-Patch [ordered]@{op=...; path=...}`) as the canonical mutation input, mirroring the API; `-Replace` (full body) is also accepted where the API supports full PUT.
 - Entity `Get-*` return `PSCustomObject`s carrying `Identifier` (users: the username) so `Get-* | Update-/Remove-*` works via `ValueFromPipelineByPropertyName`; when neither `-Session` nor `-Server` is bound and exactly one default session is registered, the resolver falls back to it.
@@ -166,7 +168,7 @@ These all bit Phase 1 and are non-obvious. The module is built to work around th
 - **`Import-Module ... -Force` of a module that defines classes re-runs `ScriptsToProcess`** and redefines the class types. Under Pester this destabilizes type resolution. Import the module once; if a test helper already imports it, the test's `BeforeAll` re-import is safe only because the module's class references are load-time variables.
 - **`Get-GuacErrorCategory` uses `ConnectionError`, not `ConnectionFailure`** — `ErrorCategory.ConnectionFailure` does not exist; `ConnectionError` is the correct member for transport-level failures.
 
-Phase 2 additions (verified on the same machine during the entity CRUD work):
+Phase 2 and 3 additions (verified on the same machine during the entity CRUD and active session work):
 
 - **Passing a `[switch]` by value to another `[switch]` parameter fails.** `Foo -A $someSwitch` throws `PositionalParameterNotFound` ("parameter not found, false value") because the off-switch value is treated as a positional argument. The colon syntax is required: `Foo -A:$someSwitch`. (Bit `Get-GuacUser` forwarding `-Direct`/`-Effective`.)
 - **`$obj.PSObject.Properties` is a `PSMemberInfoIntegratingCollection`, not an array.** Integer indexing performs a name-match query and returns an empty `PSPropertyInfo` (`.Value` → `$null`), silently. Always iterate and match by name (`foreach ($p in $obj.PSObject.Properties) { if ($p.Name -ieq 'x') { ... } }`). (Bit `Get-GuacIdentifier` — every `New-*` returned no `Identifier`.)
@@ -175,6 +177,7 @@ Phase 2 additions (verified on the same machine during the entity CRUD work):
 - **`-WhatIf` confirmation text is written straight to the host** and cannot be suppressed with `-InformationAction` or `$InformationPreference` (verified: default is already `SilentlyContinue` and the "What if: ..." line still prints). It is expected output in `-WhatIf` tests — document it, don't try to silence it.
 - **`Mandatory = $true` parameters make PowerShell prompt interactively** in a terminal when omitted (and in Pester the prompt surfaces as a binding failure, not a clean throw). For "required in practice" parameters prefer non-mandatory + an explicit terminating `[N2C_GuacAdmin_GuacRestException]` with a clear message (the `Get-GuacHistory -Type` pattern). Genuine authentication parameters (`-Server`/`-Credential` on `New-GuacSession`, `-Server` on `Get-GuacSession`) stay `Mandatory`.
 - **Pester v5: functions defined at test-file scope are NOT visible in `It` execution scope.** Define test helpers inside `BeforeAll` (they then resolve from `It` blocks), and keep shared state in `$script:` variables.
+- **PS 7.x `Invoke-WebRequest` decodes JSON objects to `PSCustomObject`** which has NO string indexer — use property access (`$obj.prop`) instead of `$obj['prop']` for PSCustomObject values returned by the REST API (e.g., the languages map).
 
 ## 7. Suggested work phases
 

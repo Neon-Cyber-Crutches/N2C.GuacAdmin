@@ -14,7 +14,8 @@
     CompatiblePSEditions = @('Desktop', 'Core')
 
     # Public surface (phase 1: authentication/session lifecycle; phase 2:
-    # entity CRUD, permissions/membership, history, schemas)
+    # entity CRUD, permissions/membership, history, schemas; phase 3: active
+    # sessions, tunnels, languages, patches, extensions)
     FunctionsToExport = @(
         'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession',
         'Get-GuacConnection', 'New-GuacConnection', 'Update-GuacConnection', 'Remove-GuacConnection',
@@ -24,7 +25,9 @@
         'Get-GuacSharingProfile', 'New-GuacSharingProfile', 'Update-GuacSharingProfile', 'Remove-GuacSharingProfile',
         'Add-GuacPermission', 'Remove-GuacPermission',
         'Add-GuacUserGroupMember', 'Remove-GuacUserGroupMember', 'Add-GuacUserGroupChildGroup', 'Remove-GuacUserGroupChildGroup',
-        'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol'
+        'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol',
+        'Get-GuacActiveConnection', 'Stop-GuacActiveConnection', 'Get-GuacSharingCredential',
+        'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension'
     )
 
     # Class definitions (N2C_GuacAdmin_GuacSession, N2C_GuacAdmin_GuacRestException).

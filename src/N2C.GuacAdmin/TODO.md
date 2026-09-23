@@ -102,12 +102,22 @@ Shared building blocks:
 
 ---
 
-## Phase 3 — Active sessions, tunnels, extensions (REST)
-- [ ] `Get-GuacActiveConnection` — `.../activeConnections` (list + by id), incl. `.../connection` and `.../sharingCredentials/{profile}`. Cite: `ActiveConnectionResource.java`, `APIActiveConnection.java`.
-- [ ] `Stop-GuacActiveConnection` — `PATCH .../activeConnections` with `[{"op":"remove","path":"/{uuid}"}]` (ConfirmImpact High).
-- [ ] `Get-GuacSharingCredential`.
-- [ ] `Get-GuacTunnel` / `Get-GuacTunnels` — read-only `GET /api/session/tunnels`.
-- [ ] `Get-GuacLanguage`, `Get-GuacPatches` (extension/patch discovery), `Get-GuacExtension` (`/api/ext/{dataSource}`). Cite: `TunnelResource.java`, `LanguageResource.java`, `ExtensionResource.java`.
+## Phase 3 — Active sessions, tunnels, extensions (REST) ✅ (COMPLETE)
+
+All 140 tests green (35 unit + 105 integration vs. `Tests/GuacMockServer.ps1`).
+
+### Public cmdlets
+- [x] `Get-GuacActiveConnection` — `.../activeConnections` (list + by id). Cite: `UserContextResource.java` (`@Path("activeConnections")`), `APIActiveConnection.java`.
+- [x] `Stop-GuacActiveConnection` — `DELETE .../activeConnections/{id}` (ConfirmImpact High). Cite: `DirectoryObjectResource.java` (`deleteObject`).
+- [x] `Get-GuacSharingCredential` — `GET .../activeConnections/{id}/sharingCredentials/{sharingProfile}` (requires `-SharingProfile`). Cite: `ActiveConnectionResource.java` (`getSharingCredentials`).
+- [x] `Get-GuacTunnel` — read-only `GET /api/session/tunnels` (list of tunnel UUIDs). Cite: `SessionResource.java` (`@Path("tunnels")`), `TunnelCollectionResource.java` (`getTunnelUUIDs`).
+- [x] `Get-GuacLanguage` — `GET /api/languages` (map of language keys to display names). Cite: `LanguageRESTService.java`.
+- [x] `Get-GuacPatches` — `GET /api/patches` (list of HTML patch strings). Cite: `PatchRESTService.java`.
+- [x] `Get-GuacExtension` — `GET /api/ext/{dataSource}` (extension resource; `-DataSource` is mandatory). Cite: `ExtensionRESTService.java`.
+
+### Tests
+- [x] `Tests/ActiveSessions.Tests.ps1` — integration tests for all Phase 3 cmdlets.
+- [x] `Tests/GuacMockServer.ps1` extended with Phase 3 endpoints (active connections, tunnels, languages, patches, extensions).
 
 ## Phase 4 — Protocol (interactive sessions)
 - [ ] `New-GuacActiveSession` — open WebSocket tunnel (`SubProtocol "guacamole"`) + `select/args/size/.../connect → ready` handshake; return `[N2C_GuacActiveSession]` (id + instruction channel). Cite: `ConfiguredGuacamoleSocket.java`, `TunnelRequest.java`.

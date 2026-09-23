@@ -5,7 +5,10 @@ PowerShell module for administering a deployed **Apache Guacamole 1.6.x** instan
 Targets the Guacamole **REST API** and (in later phases) the **Guacamole protocol** over WebSocket tunnels.
 
 - **Compatible:** Windows PowerShell 5.1 and PowerShell 7.x (Windows / Linux / macOS)
-- **Phase 1 (current):** authentication & session lifecycle
+- **Phase 1:** authentication & session lifecycle ✅
+- **Phase 2:** entity CRUD (connections, users, groups, sharing profiles, permissions) ✅
+- **Phase 3:** active sessions, tunnels, languages, patches, extensions ✅
+- **Phase 4 (next):** protocol client (interactive WebSocket sessions)
 - Roadmap: [TODO.md](TODO.md) · Design & architecture: [AGENTS.md](../../AGENTS.md)
 
 ## Layout

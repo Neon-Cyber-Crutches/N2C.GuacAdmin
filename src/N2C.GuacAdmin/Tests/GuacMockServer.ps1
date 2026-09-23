@@ -102,9 +102,11 @@ function New-GuacMockUserContext {
         users              = @{}
         userGroups         = @{}
         sharingProfiles    = @{}
+        activeConnections  = @{}
         permissions        = @{}
         memberships        = @{}
         history            = [ordered]@{ connections = @(); users = @() }
+        tunnels            = @{}
     }
 }
 
@@ -202,6 +204,25 @@ function New-GuacMockSeededContext {
                 duration = 1800; connectionCount = 1; readWriteCount = 1; readOnlyCount = 0
             }
         )
+    }
+
+    # Seed a couple of active connections for testing
+    $Ctx['activeConnections'] = @{}
+    $Ctx['activeConnections']['active-1'] = [ordered]@{
+        identifier = 'active-1'
+        connectionIdentifier = 'conn-1'
+        startDate = '2026-09-23T10:00:00Z'
+        remoteHost = '10.0.0.5'
+        username = 'guacadmin'
+        connectable = $true
+    }
+    $Ctx['activeConnections']['active-2'] = [ordered]@{
+        identifier = 'active-2'
+        connectionIdentifier = 'conn-2'
+        startDate = '2026-09-23T10:15:00Z'
+        remoteHost = '192.168.1.10'
+        username = 'jdoe'
+        connectable = $true
     }
 
     $Ctx['Seeded'] = $true
@@ -967,6 +988,90 @@ while ($listener.IsListening) {
                 }
             }
 
+            # Active connections surface (Phase 3).
+            if ($segments.Count -ge 2 -and $segments[1] -eq 'activeConnections') {
+                $activeConns = $ctx['activeConnections']
+
+                if ($segments.Count -eq 2) {
+                    if ($method -eq 'GET') {
+                        Send-Json -Context $context -Code 200 -Object $activeConns
+                        continue
+                    }
+                    if ($method -eq 'PATCH') {
+                        # JSON Patch remove operation to stop an active connection
+                        $operations = ConvertTo-GuacMockOperationArray ($body | ConvertFrom-Json -Depth 8)
+                        $outcomes = @()
+                        foreach ($operation in $operations) {
+                            $op = [string]$operation.op
+                            $path = [string]$operation.path
+                            if ($op -eq 'remove') {
+                                $activeId = $path.TrimStart('/')
+                                if (-not $activeConns.ContainsKey($activeId)) {
+                                    Send-ApiError -Context $context -Code 404 -Type 'NOT_FOUND' -Message ('No such active connection: ' + $activeId)
+                                    continue
+                                }
+                                $activeConns.Remove($activeId)
+                            }
+                            $outcomes += [ordered]@{ op = $op; identifier = $activeId; path = $path }
+                        }
+                        Send-Json -Context $context -Code 200 -Object ([ordered]@{ patches = $outcomes })
+                        continue
+                    }
+                }
+                elseif ($segments.Count -ge 3) {
+                    $activeId = [uri]::UnescapeDataString($segments[2])
+
+                    if ($segments.Count -eq 3) {
+                        if (-not $activeConns.ContainsKey($activeId)) {
+                            Send-ApiError -Context $context -Code 404 -Type 'NOT_FOUND' -Message ('No such active connection: ' + $activeId)
+                            continue
+                        }
+                        if ($method -eq 'GET') {
+                            Send-Json -Context $context -Code 200 -Object $activeConns[$activeId]
+                            continue
+                        }
+                        if ($method -eq 'DELETE') {
+                            $activeConns.Remove($activeId)
+                            Send-Response -Context $context -Code 204 -ContentType $null -Body $null
+                            continue
+                        }
+                    }
+
+                    # Active connection subresources
+                    if ($segments.Count -ge 4) {
+                        if (-not $activeConns.ContainsKey($activeId)) {
+                            Send-ApiError -Context $context -Code 404 -Type 'NOT_FOUND' -Message ('No such active connection: ' + $activeId)
+                            continue
+                        }
+                        $sub = $segments[3]
+                        $activeConn = $activeConns[$activeId]
+
+                        # Get the underlying connection object
+                        if ($sub -eq 'connection' -and $method -eq 'GET') {
+                            $connId = [string]$activeConn['connectionIdentifier']
+                            if ($ctx['connections'].ContainsKey($connId)) {
+                                Send-Json -Context $context -Code 200 -Object $ctx['connections'][$connId]
+                            }
+                            else {
+                                Send-ApiError -Context $context -Code 404 -Type 'NOT_FOUND' -Message ('No such connection: ' + $connId)
+                            }
+                            continue
+                        }
+
+                        # Sharing credentials
+                        if ($sub -eq 'sharingCredentials' -and $segments.Count -ge 5 -and $method -eq 'GET') {
+                            $sharingProfile = $segments[4]
+                            $creds = [ordered]@{
+                                username = ('share-{0}-{1}' -f ($activeId, $sharingProfile))
+                                password = ('share-pass-' + [System.Guid]::NewGuid().ToString('N'))
+                            }
+                            Send-Json -Context $context -Code 200 -Object $creds
+                            continue
+                        }
+                    }
+                }
+            }
+
             # History surface.
             if ($segments.Count -ge 2 -and $segments[1] -eq 'history' -and $method -eq 'GET') {
                 if ($segments.Count -eq 3 -and $segments[2] -eq 'connections') {
@@ -991,6 +1096,67 @@ while ($listener.IsListening) {
                 }
             }
         }
+    }
+
+    # ---- Session-level endpoints (Phase 3) ----
+    # Extension resource (ExtensionRESTService @Path("/ext/{identifier}"))
+    if ($relPath -like '/api/ext/*') {
+        $extDs = [uri]::UnescapeDataString($relPath.Substring('/api/ext/'.Length))
+        $extInfo = [ordered]@{
+            dataSource = $extDs
+            name = ('guacamole-auth-' + $extDs)
+            version = '1.6.0'
+        }
+        Send-Json -Context $context -Code 200 -Object $extInfo
+        continue
+    }
+
+    if ($relPath -eq '/api/languages' -and $method -eq 'GET') {
+        $languages = [ordered]@{
+            en = 'English'
+            fr = 'Français'
+            de = 'Deutsch'
+            es = 'Español'
+            ru = 'Русский'
+            ja = '日本語'
+        }
+        Send-Json -Context $context -Code 200 -Object $languages
+        continue
+    }
+
+    if ($relPath -eq '/api/patches' -and $method -eq 'GET') {
+        $patches = @(
+            '<html><head><meta name="guac-patch" content="test-patch-1"></head><body></body></html>'
+        )
+        Send-Json -Context $context -Code 200 -Object $patches
+        continue
+    }
+
+    if ($relPath -like '/api/session*') {
+        if ([string]::IsNullOrEmpty($token) -or -not $validTokens.ContainsKey($token)) {
+            Send-ApiError -Context $context -Code 401 -Type 'NOT_FOUND' -Message 'No such token.'
+            continue
+        }
+
+        # Tunnels collection
+        if ($relPath -eq '/api/session/tunnels' -and $method -eq 'GET') {
+            $tunnelIds = @('tunnel-1', 'tunnel-2')
+            Send-Json -Context $context -Code 200 -Object $tunnelIds
+            continue
+        }
+
+        if ($relPath -like '/api/session/tunnels/*' -and $method -eq 'GET') {
+            $tunnelId = $relPath.Substring('/api/session/tunnels/'.Length)
+            $tunnelInfo = [ordered]@{
+                identifier = $tunnelId
+                protocol = 'ssh'
+                activeConnection = 'active-1'
+                streams = @()
+            }
+            Send-Json -Context $context -Code 200 -Object $tunnelInfo
+            continue
+        }
+
     }
 
     if ($relPath -eq '/api/notfound' -and $method -eq 'GET') {

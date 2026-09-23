@@ -9,7 +9,10 @@ function Resolve-GuacSessionContext {
         entity cmdlet (the same pattern as Remove-GuacSession and
         Test-GuacSession): an explicit [N2C_GuacAdmin_GuacSession] (also
         accepted from the pipeline) wins; otherwise the module default
-        session for -Server is used.
+        session for -Server is used. When neither -Session nor -Server is
+        bound (for example when only the entity object was piped) and exactly
+        one default session is registered in this process, that session is
+        used.
 
         Returns an ordered hashtable with the resolved values:
         - Session      : the [N2C_GuacAdmin_GuacSession] to use
@@ -69,6 +72,17 @@ function Resolve-GuacSessionContext {
             ))
         }
         $Session = $stateSession
+        $token = [string]$Session.Token
+    }
+    elseif ($script:GuacSessionState.Count -eq 1) {
+        # Neither -Session nor -Server was bound (for example when only the
+        # entity object was piped). Fall back to the single default session
+        # registered in this process, which makes
+        #     Get-GuacUser -Id 'jdoe'
+        # work after New-GuacSession without repeating -Session on every call
+        # (the -CmsSession default-session pattern).
+        $server = [string]$script:GuacSessionState.Keys[0]
+        $Session = $script:GuacSessionState[$server]
         $token = [string]$Session.Token
     }
     else {

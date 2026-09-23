@@ -58,9 +58,9 @@ function Get-GuacHistory {
         [AllowEmptyString()]
         [string] $DataSource = [string]::Empty,
 
-        [Parameter(Mandatory = $true, Position = 0)]
+        [Parameter(Mandatory = $false, Position = 0)]
         [ValidateSet('Connection', 'User')]
-        [string] $Type,
+        [string] $Type = [string]::Empty,
 
         [Parameter(Mandatory = $false)]
         [AllowEmptyString()]
@@ -70,6 +70,15 @@ function Get-GuacHistory {
         [AllowEmptyString()]
         [string] $Order = [string]::Empty
     )
+
+    # -Type is not Mandatory on purpose: a Mandatory parameter would make
+    # PowerShell prompt interactively in a terminal instead of failing with a
+    # clear, catchable terminating error.
+    if ([string]::IsNullOrWhiteSpace($Type)) {
+        throw ($script:GuacRestExceptionType::new(
+            'Get-GuacHistory requires -Type: supply -Type Connection or -Type User.'
+        ))
+    }
 
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacHistory'
 

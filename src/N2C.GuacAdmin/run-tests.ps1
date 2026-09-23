@@ -16,15 +16,19 @@ param (
 )
 
 $ErrorActionPreference = 'Stop'
-$testsRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$moduleRoot = $PSScriptRoot
+$testsDir = Join-Path $moduleRoot 'Tests'
 $files = @()
 
 # Always run the pure helper unit tests.
-$files += (Join-Path $testsRoot 'Helpers.Tests.ps1')
+$files += (Join-Path $testsDir 'Helpers.Tests.ps1')
 
-# The session lifecycle tests spin up a local mock Guacamole server.
+# The integration tests spin up a local mock Guacamole server
+# (Tests/GuacMockServer.ps1); every other *.Tests.ps1 in Tests/ is integration.
 if ($IncludeIntegration) {
-    $files += (Join-Path $testsRoot 'SessionLifecycle.Tests.ps1')
+    $integrationFiles = Get-ChildItem -Path $testsDir -Filter '*.Tests.ps1' -File |
+        Where-Object { $_.Name -ne 'Helpers.Tests.ps1' }
+    $files += @($integrationFiles | ForEach-Object { $_.FullName })
 }
 
 $pesterConfig = New-PesterConfiguration

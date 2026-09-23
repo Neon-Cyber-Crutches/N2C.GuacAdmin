@@ -44,6 +44,67 @@ function Get-GuacMapEntries {
     }
 }
 
+function ConvertTo-GuacMapValue {
+    <#
+    .SYNOPSIS
+        Normalizes a decoded Guacamole JSON value into a PS 5.1/7.x-compatible shape.
+
+    .DESCRIPTION
+        Depending on the PowerShell version and the HTTP response decoder, JSON
+        objects arrive either as IDictionary (Windows PowerShell 5.1 ConvertFrom-Json)
+        or as PSCustomObject (PowerShell 7.x Invoke-WebRequest). The PSCustomObject
+        shape does not support string indexing ($map['key'] returns $null), which
+        breaks callers such as $connection.Parameters['hostname'] and
+        $permissionSet.ConnectionPermissions['conn-1'].
+
+        This helper converts JSON objects into hashtables (string-indexable on both
+        versions) and JSON arrays into object arrays whose elements are recursively
+        normalized, up to $Depth. Scalars, $null, and values deeper than $Depth
+        pass through unchanged.
+
+        This function is private to the N2C.GuacAdmin module.
+    #>
+    [CmdletBinding()]
+    [OutputType([object])]
+    param (
+        [Parameter(Position = 0)]
+        [AllowNull()]
+        [object] $Value,
+
+        [Parameter(Position = 1)]
+        [int] $Depth = 8
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+    if ($Depth -le 0) {
+        return $Value
+    }
+    if ($Value -is [System.Collections.IDictionary]) {
+        $map = @{}
+        foreach ($key in $Value.Keys) {
+            $map[[string]$key] = (ConvertTo-GuacMapValue -Value $Value[$key] -Depth ($Depth - 1))
+        }
+        return $map
+    }
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        $map = @{}
+        foreach ($prop in $Value.PSObject.Properties) {
+            $map[$prop.Name] = (ConvertTo-GuacMapValue -Value $prop.Value -Depth ($Depth - 1))
+        }
+        return $map
+    }
+    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+        $items = @()
+        foreach ($item in $Value) {
+            $items += (ConvertTo-GuacMapValue -Value $item -Depth ($Depth - 1))
+        }
+        return $items
+    }
+    return $Value
+}
+
 function Get-GuacEntityResponse {
     <#
     .SYNOPSIS
@@ -89,14 +150,19 @@ function Get-GuacEntityResponse {
         return $null
     }
 
+    # Normalize the response so that nested JSON objects become string-indexable
+    # hashtables on every PowerShell version (PSCustomObject, as produced by the
+    # PowerShell 7.x JSON decoder, does not support $map['key'] indexing).
+    $normalized = ConvertTo-GuacMapValue -Value $Response
+
     $props = [ordered]@{}
-    if ($Response -is [System.Collections.IDictionary]) {
-        foreach ($key in $Response.Keys) {
-            $props[[string]$key] = $Response[$key]
+    if ($normalized -is [System.Collections.IDictionary]) {
+        foreach ($key in $normalized.Keys) {
+            $props[[string]$key] = $normalized[$key]
         }
     }
     else {
-        foreach ($prop in $Response.PSObject.Properties) {
+        foreach ($prop in $normalized.PSObject.Properties) {
             $props[$prop.Name] = $prop.Value
         }
     }
@@ -184,27 +250,28 @@ function Get-GuacIdentifier {
         return [string]::Empty
     }
 
-    $names = @()
-    if ($Object -is [System.Collections.IDictionary]) {
-        $names = @($Object.Keys | ForEach-Object { [string]$_ })
-    }
-    else {
-        $names = @($Object.PSObject.Properties | ForEach-Object { $_.Name })
-    }
-
+    # NOTE: property lookup is done by iterating and matching the name
+    # (case-insensitive). Integer indexing into $Object.PSObject.Properties is
+    # NOT used: it is a PSMemberInfoIntegratingCollection, and indexing it with
+    # an int performs a name-match query that returns an empty PSPropertyInfo
+    # (verified on pwsh 7.6), which silently yields $null values.
     foreach ($candidate in @('Identifier', 'identifier', 'username')) {
-        $index = -1
-        for ($i = 0; $i -lt $names.Count; $i++) {
-            if ($names[$i] -ieq $candidate) { $index = $i; break }
-        }
-        if ($index -lt 0) { continue }
-
         $value = [string]::Empty
         if ($Object -is [System.Collections.IDictionary]) {
-            $value = [string]$Object[$names[$index]]
+            foreach ($key in $Object.Keys) {
+                if ([string]$key -ieq $candidate) {
+                    $value = [string]$Object[$key]
+                    break
+                }
+            }
         }
         else {
-            $value = [string]$Object.PSObject.Properties[$index].Value
+            foreach ($prop in $Object.PSObject.Properties) {
+                if ($prop.Name -ieq $candidate) {
+                    $value = [string]$prop.Value
+                    break
+                }
+            }
         }
         if (-not [string]::IsNullOrWhiteSpace($value)) {
             return $value

@@ -53,52 +53,52 @@ All 58 tests green (35 unit + 23 integration vs. `Tests/GuacMockServer.ps1`).
 
 ---
 
-## Phase 2 — Entity CRUD (next)
+## Phase 2 — Entity CRUD ✅ (COMPLETE)
 
-Manage Guacamole entities via the per-`DataSource` UserContext REST surface. Every endpoint must be traced to `ANALYSIS/guacamole-client-1.6.0/` source (AGENTS.md §6 verification rule). All new cmdlets: accept `-Session` (`ValueFromPipelineByPropertyName` where identity-based) with module-state default; `SupportsShouldProcess` on mutators; `ConfirmImpact = High` on `Remove-*`; `Update-*` take a JSON Patch operations array (`-Patch`) as the canonical mutation input.
+All 127 tests green (35 unit + 92 integration vs. `Tests/GuacMockServer.ps1`). Every endpoint traced to `ANALYSIS/guacamole-client-1.6.0/` source (cite in each cmdlet's header comment). All cmdlets: `-Session` (pipeline by property name where identity-based) with module-state default; `SupportsShouldProcess` on mutators; `ConfirmImpact = High` on `Remove-*`; `Update-*` take `-Patch` (RFC 6902 ops array) or `-Replace`.
 
-Shared building blocks (build once, reuse):
-- [ ] **`Private/Resolve-GuacContextUrl`** — builds the per-datasource UserContext base: `{server}/api/session/data/{dataSource}/...` from a `[N2C_GuacAdmin_GuacSession]` (defaults `-DataSource` to `$session.DataSource`; never hardcode `mysql`). Cite: `guacamole/src/main/java/org/apache/guacamole/rest/SessionResource.java` (`getUserContextResource`).
-- [ ] **`Private/Invoke-GuacPatch`** — JSON Patch (RFC 6902) wrapper over `Invoke-GuacRest` for collection mutations (`PATCH` with an operations array); returns the resulting collection.
-- [ ] **`Private/ConvertTo-GuacJsonPatch`** — normalizes `-Patch` (ordered hashtable / array of hashtables) into the RFC 6902 wire form; guards single-element array unwrapping (5.1).
-- [ ] **Pipeline plumbing** — add `Identifier`-carrying `OutputType` on entity `Get-*` so `Get-* | Stop-/Remove-/Update-*` works via `ValueFromPipelineByPropertyName`; confirm identity field names against the 1.6.0 DTOs.
+Shared building blocks:
+- [x] **`Private/Resolve-GuacSessionContext`** (+ `Resolve-GuacContextUrl`) — per-`DataSource` UserContext base from a `[N2C_GuacAdmin_GuacSession]`; `-DataSource` defaults to `$session.DataSource`, validated against `availableDataSources`; falls back to the single registered default session when neither `-Session` nor `-Server` is bound. Cite: `rest/session/SessionResource.java` (`getUserContextResource`).
+- [x] **`Private/Invoke-GuacPatch`** — JSON Patch (RFC 6902) over `Invoke-GuacRest`; **`Private/Invoke-GuacDirectory`** — Get/List/Create/Update/Delete/Replace against a directory collection with `Identifier` wrapping; **`Private/Invoke-GuacRelatedSetPatch`** — add/remove string-set members (`memberUsers`, `memberUserGroups`, `permissions`).
+- [x] **`Private/Get-GuacEntityResponse`** — wraps decoded bodies in `Identifier`-carrying `PSCustomObject`s; **`Private/Get-GuacIdentifier`** extracts the identity (`Identifier` → `identifier` → `username`) for pipeline plumbing; **`Private/ConvertTo-GuacMapValue`** normalizes nested JSON maps to string-indexable hashtables (5.1/7.x parity).
+- [x] **`Private/Get-GuacUserPermissions`** — attaches `permissions` / `effectivePermissions` sets onto a copy of a user object.
 
 ### 2a. Connections
-- [ ] `Get-GuacConnection` — `GET .../userContext/connections/{identifier}` (+ list overload `.../connections`). Cite: `ConnectionResource.java`.
-- [ ] `New-GuacConnection` — create via `PUT .../connections` (JSON body: `name`, `protocol`, `parameters`, `maximumSessions`, `comment`, `parent` group). Verify the exact create verb/body against `ConnectionResource.java` before implementing (AGENTS.md §4 anti-pattern: do not invent bodies).
-- [ ] `Update-GuacConnection` — `PUT .../connections/{id}` (full) and/or JSON Patch; `-Patch` canonical.
-- [ ] `Remove-GuacConnection` — `DELETE .../connections/{id}`.
-- [ ] `Get-GuacConnectionParameter` / attribute accessors if the schema calls for them (optional; prefer exposing `parameters` on the object).
+- [x] `Get-GuacConnection` (list + by id), `New-GuacConnection` (`PUT .../connections`), `Update-GuacConnection` (`-Patch`/`-Replace`, re-fetch), `Remove-GuacConnection`. Cite: `ConnectionResource.java`.
 
 ### 2b. Connection groups
-- [ ] `Get-GuacConnectionGroup` — `.../connectionGroups/{id}` (+ list, `.../connections/{id}` for children).
-- [ ] `New-GuacConnectionGroup`, `Update-GuacConnectionGroup` (incl. reparenting via `parent`), `Remove-GuacConnectionGroup`. Cite: `ConnectionGroupResource.java`.
+- [x] `Get-GuacConnectionGroup` (list + by id, `-Tree` via `.../{id}/tree`), `New-GuacConnectionGroup`, `Update-GuacConnectionGroup` (incl. reparent), `Remove-GuacConnectionGroup`. Cite: `ConnectionGroupResource.java`.
 
 ### 2c. Users & user groups
-- [ ] `Get-GuacUser` (`.../users/{id}`, `.../users/{id}/permissions`, `/password` presence flag), `New-GuacUser`, `Update-GuacUser`, `Remove-GuacUser`, `Set-GuacUserPassword` (or `Update-GuacUserPassword`). Cite: `UserResource.java`.
-- [ ] `Get-GuacUserGroup`, `New-GuacUserGroup`, `Update-GuacUserGroup` (incl. reparent), `Remove-GuacUserGroup`. Cite: `UserGroupResource.java`.
+- [x] `Get-GuacUser` (list + by id; `-Permissions` / `-EffectivePermissions`), `New-GuacUser` (`-Credential`/`-Username`+`-Password`), `Update-GuacUser` (password preserved unless in body; self-password change via update rejected by the server → 403), `Remove-GuacUser`, `Set-GuacUserPassword` (`PUT .../users/{id}/password`, old+new). Cite: `UserResource.java`, `UserPasswordResource.java`.
+- [x] `Get-GuacUserGroup`, `New-GuacUserGroup`, `Update-GuacUserGroup`, `Remove-GuacUserGroup`. Cite: `UserGroupResource.java`.
+- [x] `Add-GuacUserGroupMember` / `Remove-GuacUserGroupMember` — `PATCH .../userGroups/{id}/memberUsers` add/remove.
+- [x] `Add-GuacUserGroupChildGroup` / `Remove-GuacUserGroupChildGroup` — `PATCH .../userGroups/{id}/memberUserGroups` add/remove.
 
 ### 2d. Sharing profiles
-- [ ] `Get-GuacSharingProfile`, `New-GuacSharingProfile`, `Update-GuacSharingProfile`, `Remove-GuacSharingProfile`. Cite: `SharingProfileResource.java`.
+- [x] `Get-GuacSharingProfile` (list + by id), `New-GuacSharingProfile`, `Update-GuacSharingProfile` (`-Patch`/`-Replace`), `Remove-GuacSharingProfile`. Cite: `SharingProfileResource.java`.
 
 ### 2e. Permissions (JSON Patch core)
-- [ ] `Add-GuacUserConnection` / `Remove-GuacUserConnection` — `PATCH .../permissions/users/{user}` add/remove `{type: CONNECTION, identifier}`.
-- [ ] `Add-GuacUserConnectionGroup` / `Remove-GuacUserConnectionGroup`.
-- [ ] `Add-GuacUserGroupMember` / `Remove-GuacUserGroupMember` — `PATCH .../permissions/userGroups/{group}`.
-- [ ] `Add-GuacUserGroupConnection` / `Remove-GuacUserGroupConnection`, `Add-GuacUserGroupConnectionGroup` / `Remove-...`.
-- [ ] `Add-GuacUserSystemPermission` / `Remove-GuacUserSystemPermission` (`CREATE_USER`, `CREATE_USER_GROUP`, `CREATE_CONNECTION`, `CREATE_CONNECTION_GROUP`, `CREATE_SHARING_PROFILE`, `DELETE_USER`, … per `APIPermission.Type`). Cite: `PermissionResource.java`, `APIPermission.java`.
+- [x] `Add-GuacPermission` / `Remove-GuacPermission` — `PATCH .../{users|userGroups}/{id}/permissions` with `[{"op":"add|remove","path":"/{category}/{identifier}","value":"{TYPE}"}]`; subject via `-User`/`-UserGroup` or a piped entity object; targets `-Connection`, `-ConnectionGroup`, `-SharingProfile`, `-ActiveConnection`, `-System`. Cite: `PermissionSetResource.java`, `APIPermissionSet.java`.
 
 ### 2f. History & schemas (read-only)
-- [ ] `Get-GuacHistory` — `.../history` (per-user, paginated). Cite: `HistoryResource.java`.
-- [ ] `Get-GuacSchemaConnection` / `Get-GuacSchemaConnectionGroup` / `Get-GuacSchemaUser` / `Get-GuacSchemaSharingProfile` — attribute/parameter metadata. Cite: `SchemaResource.java` + `*Schema.java`.
-- [ ] `Get-GuacProtocol` — available protocols (`.../protocols` or the bundled `guacamole-ext/.../protocols/*.json` for offline validation). Cite: `ProtocolResource.java`.
+- [x] `Get-GuacHistory` — `.../history/connections` / `.../history/users` (filterable, `-First` limit). Cite: `HistoryResource.java`.
+- [x] `Get-GuacSchema` — `.../schema/connectionAttributes`, `connectionParameters`, `connectionGroupAttributes`, `userAttributes`, `userGroupAttributes`, `sharingProfileAttributes/Parameters`. Cite: `SchemaResource.java`.
+- [x] `Get-GuacProtocol` — `GET /api/session/protocols` (server-side protocol list + forms). Cite: `ProtocolResource.java`.
 
 ### Phase 2 cross-cutting
-- [ ] Extend `Tests/GuacMockServer.ps1` with UserContext routes (connections, groups, users, permissions, schemas) so phase-2 cmdlets are integration-tested with no live instance.
-- [ ] Add a Pester file per entity area (mirroring phase-1 structure): `Connections.Tests.ps1`, `ConnectionGroups.Tests.ps1`, `Users.Tests.ps1`, `Permissions.Tests.ps1`, `Schemas.Tests.ps1`, `SharingProfiles.Tests.ps1`.
-- [ ] Update `N2C.GuacAdmin.psd1` `FunctionsToExport` / manifest as cmdlets land; keep the phase-1 export-set test updated (compare as a set, per AGENTS.md §6.1).
-- [ ] Help with `Examples` on every exported cmdlet (AGENTS.md §6 style).
-- [ ] Update `../../AGENTS.md` §5.3 as cmdlet names/verbs are finalized, and §2 if the layout changes.
+- [x] `Tests/GuacMockServer.ps1` extended with the full UserContext surface (directories, permissions, related sets, password, history, schema, protocols) — integration-tested with no live instance.
+- [x] Pester file per entity area: `Connections.Tests.ps1`, `ConnectionGroups.Tests.ps1`, `Users.Tests.ps1`, `UserGroups.Tests.ps1`, `SharingProfiles.Tests.ps1`, `Permissions.Tests.ps1`, `HistorySchema.Tests.ps1`.
+- [x] Manifest `FunctionsToExport` updated; export-set test asserts phase-1 + phase-2 as a set.
+- [x] Help with `Examples` on every exported cmdlet.
+- [x] `../../AGENTS.md` §5.3 / §6.1 updated with the final cmdlet surface and the phase-2 pitfalls.
+
+### Phase 2 pitfalls (new; locked in AGENTS.md §6.1 — do not rediscover)
+- [x] Passing a `[switch]` by value to another `[switch]` parameter (`-Direct $flag`) throws `PositionalParameterNotFound`; the colon syntax (`-Direct:$flag`) is required.
+- [x] `$obj.PSObject.Properties` is a `PSMemberInfoIntegratingCollection` — integer indexing performs a name-match query and returns an empty `PSPropertyInfo`; always iterate and match by name.
+- [x] PS 7.x `Invoke-WebRequest` decodes JSON objects to `PSCustomObject` (5.1: `OrderedDictionary`); `PSCustomObject` has no string indexer, so `Get-GuacEntityResponse` normalizes nested maps to hashtables before exposing them.
+- [x] `ConfirmImpact = 'High'` cmdlets auto-prompt under the default `$ConfirmPreference` and NRE on `ShouldProcess` in non-interactive hosts (Pester) — tests must pass `-Confirm:$false`.
+- [x] Functions defined at Pester test file scope are not visible in `It` execution scope; define test helpers inside `BeforeAll`.
 
 ---
 

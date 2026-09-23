@@ -273,10 +273,20 @@ Describe 'GuacRestException error contract (via mock server)' {
 }
 
 Describe 'Module manifest and export' {
-    It 'exports exactly the phase 1 cmdlets' {
+    It 'exports exactly the phase 1 + phase 2 cmdlets' {
         $sm = Get-Module N2C.GuacAdmin
         # ExportedFunctions is a plain hashtable: compare as a set, not by order.
-        $expected = @('New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession')
+        $expected = @(
+            'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession',
+            'Get-GuacConnection', 'New-GuacConnection', 'Update-GuacConnection', 'Remove-GuacConnection',
+            'Get-GuacConnectionGroup', 'New-GuacConnectionGroup', 'Update-GuacConnectionGroup', 'Remove-GuacConnectionGroup',
+            'Get-GuacUser', 'New-GuacUser', 'Update-GuacUser', 'Remove-GuacUser', 'Set-GuacUserPassword',
+            'Get-GuacUserGroup', 'New-GuacUserGroup', 'Update-GuacUserGroup', 'Remove-GuacUserGroup',
+            'Get-GuacSharingProfile', 'New-GuacSharingProfile', 'Update-GuacSharingProfile', 'Remove-GuacSharingProfile',
+            'Add-GuacPermission', 'Remove-GuacPermission',
+            'Add-GuacUserGroupMember', 'Remove-GuacUserGroupMember', 'Add-GuacUserGroupChildGroup', 'Remove-GuacUserGroupChildGroup',
+            'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol'
+        )
         $actual = @($sm.ExportedFunctions.Keys)
         $actual.Count | Should -Be $expected.Count
         foreach ($name in $expected) {

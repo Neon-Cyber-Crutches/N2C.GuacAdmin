@@ -79,15 +79,19 @@ function Get-GuacUser {
 
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUser'
 
+    # NOTE: switch values are forwarded with the colon syntax (-Direct:$Permissions).
+    # The value form (-Direct $Permissions) makes PowerShell treat the switch as a
+    # positional argument and throws PositionalParameterNotFound (verified on
+    # pwsh 7.x).
     if (-not [string]::IsNullOrWhiteSpace($Id)) {
         $user = Invoke-GuacDirectory -Context $ctx -Collection 'users' -Action 'Get' -Id $Id
-        return (Get-GuacUserPermissions -User $user -Context $ctx -Direct $Permissions -Effective $EffectivePermissions)
+        return (Get-GuacUserPermissions -User $user -Context $ctx -Direct:$Permissions -Effective:$EffectivePermissions)
     }
 
     $users = @(Invoke-GuacDirectory -Context $ctx -Collection 'users' -Action 'List')
     if ($Permissions -or $EffectivePermissions) {
         foreach ($user in $users) {
-            Write-Output (Get-GuacUserPermissions -User $user -Context $ctx -Direct $Permissions -Effective $EffectivePermissions)
+            Write-Output (Get-GuacUserPermissions -User $user -Context $ctx -Direct:$Permissions -Effective:$EffectivePermissions)
         }
         return
     }

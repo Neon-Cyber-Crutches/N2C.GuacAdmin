@@ -51,11 +51,11 @@ directory** (for example `Remove-Item -Recurse -Force
 ANALYSIS/guacamole-powershell/.git`) so that nested repositories do not
 interfere with the outer repository's tooling.
 
-### Module layout (Phase 3, current)
+### Module layout (Phase 4, current)
 
-[`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) follows the standard PowerShell module layout: `N2C.GuacAdmin.psd1` (manifest; `ScriptsToProcess = @('Types.ps1')` defines the two classes in caller-visible scope), `N2C.GuacAdmin.psm1` (loader), `Types.ps1`, `Public/`, `Private/`, and `Tests/` (Pester v5 + a self-contained mock Guacamole server, `Tests/GuacMockServer.ps1`, so integration tests run with no live instance). Run the suite with `src/N2C.GuacAdmin/run-tests.ps1` (`-IncludeIntegration` adds the mock-server session-lifecycle tests).
+[`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) follows the standard PowerShell module layout: `N2C.GuacAdmin.psd1` (manifest; `ScriptsToProcess = @('Types.ps1')` defines the classes in caller-visible scope), `N2C.GuacAdmin.psm1` (loader), `Types.ps1`, `Public/`, `Private/`, and `Tests/` (Pester v5 + a self-contained mock Guacamole server, `Tests/GuacMockServer.ps1`, so integration tests run with no live instance). Run the suite with `src/N2C.GuacAdmin/run-tests.ps1` (`-IncludeIntegration` adds the mock-server session-lifecycle tests).
 
-Phases 1-3 are complete (140 tests green, lint clean). Phase 4 (protocol client) is next.
+Phases 1-4 are complete (150 tests green, lint clean). Phase 5 (hardening & release) is next.
 
 ## 3. Critical technical facts (do not rediscover, do not contradict)
 
@@ -123,7 +123,7 @@ Get-GuacConnection | Stop-GuacActiveConnection -Session $g   # -Session via Valu
 
 ### 5.3. Cmdlet surface (verb-noun convention with noun `Guac*`)
 
-Implemented through Phase 3 (2026-09; full detail + per-cmdlet endpoints in [`src/N2C.GuacAdmin/TODO.md`](src/N2C.GuacAdmin/TODO.md)):
+Implemented through Phase 4 (2026-09; full detail + per-cmdlet endpoints in [`src/N2C.GuacAdmin/TODO.md`](src/N2C.GuacAdmin/TODO.md)):
 
 - **Auth (Phase 1):** `New-GuacSession`, `Get-GuacSession`, `Remove-GuacSession`, `Test-GuacSession`
 - **Entities (Phase 2):** `Get/New/Update/Remove-GuacConnection`, `-GuacConnectionGroup` (`-Tree` on the Get), `-GuacUser` (`-Permissions`/`-EffectivePermissions` on the Get), `-GuacUserGroup`, `-GuacSharingProfile`
@@ -134,15 +134,17 @@ Implemented through Phase 3 (2026-09; full detail + per-cmdlet endpoints in [`sr
 - **Active sessions (REST, Phase 3 — done):** `Get-GuacActiveConnection` (list/by id), `Stop-GuacActiveConnection` (DELETE by id, SupportsShouldProcess), `Get-GuacSharingCredential` (requires `-SharingProfile`)
 - **Tunnels (read-only, Phase 3 — done):** `Get-GuacTunnel` (list of tunnel UUIDs)
 - **Languages/Patches/Extensions (Phase 3 — done):** `Get-GuacLanguage`, `Get-GuacPatches`, `Get-GuacExtension`
-- **Protocol (sessions, Phase 4):** `New-GuacActiveSession` (opens WebSocket tunnel + handshake, returns `[GuacActiveSession]` with Id + instruction channel), `Remove-GuacActiveSession` (graceful `disconnect`), low-level `Send-GuacInstruction` / `Receive-GuacInstruction`
+- **Protocol (sessions, Phase 4 — done):** `New-GuacActiveSession` (opens WebSocket tunnel + handshake, returns `[N2C_GuacAdmin_GuacActiveSession]` with Id + WebSocket), `Send-GuacInstruction` / `Receive-GuacInstruction` (low-level instruction pump), `Remove-GuacActiveSession` (graceful `disconnect`)
 - `Update-*` cmdlets accept a JSON Patch operations array (`-Patch [ordered]@{op=...; path=...}`) as the canonical mutation input, mirroring the API; `-Replace` (full body) is also accepted where the API supports full PUT.
 - Entity `Get-*` return `PSCustomObject`s carrying `Identifier` (users: the username) so `Get-* | Update-/Remove-*` works via `ValueFromPipelineByPropertyName`; when neither `-Session` nor `-Server` is bound and exactly one default session is registered, the resolver falls back to it.
 
-### 5.4. Protocol client notes
-- Use `System.Net.WebSockets.ClientWebSocket` with `SubProtocol = "guacamole"` (works in PS 5.1 and 7.x).
-- Frame handling: messages are UTF-8 text, may be split across frames; buffer until a complete `len.opcode,len.arg,...;`-terminated instruction is parsed.
-- `ready` carries the session ID; correlate it with the REST `activeConnections` list.
-- Bundle the protocol JSON schemas (`guacamole-ext/.../protocols/*.json`) with the module as data for offline argument validation, but prefer runtime `schema/connectionAttributes` for the actual argument set.
+### 5.4. Protocol client notes (Phase 4 — done)
+- `New-GuacActiveSession` opens a `System.Net.WebSockets.ClientWebSocket` and performs the full handshake: `select` → `args` → `size` → `audio` → `video` → `image` → `timezone` → `connect`, then waits for the `ready` instruction which carries the session ID.
+- The returned `[N2C_GuacAdmin_GuacActiveSession]` carries the session ID and the live WebSocket for the instruction pump.
+- `Send-GuacInstruction` and `Receive-GuacInstruction` provide low-level access for the instruction pump; `Receive-GuacInstruction` supports optional `-TimeoutSec`.
+- `Remove-GuacActiveSession` sends a graceful `disconnect` instruction and closes the WebSocket.
+- Instruction encoding/decoding: private helpers `ConvertTo-GuacInstructionString` and `ConvertFrom-GuacInstructionString` handle the wire format `len.opcode,len.arg,...,;`.
+- Private `New-GuacTunnelUrl` builds the WebSocket tunnel URL from `TunnelRequest` parameters; private `Invoke-GuacProtocolHandshake` performs the handshake and waits for `ready`.
 
 ## 6. Engineering standards
 

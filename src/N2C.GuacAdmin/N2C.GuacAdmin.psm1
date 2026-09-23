@@ -51,6 +51,8 @@ if ($PSVersionTable.PSVersion.Major -lt 6) {
 # every construction and every runtime type test in the module goes through
 # these variables instead of type literals.
 $script:GuacSessionType = [N2C_GuacAdmin_GuacSession]
+$script:GuacActiveSessionType = [N2C_GuacAdmin_GuacActiveSession]
+$script:GuacInstructionType = [N2C_GuacAdmin_GuacInstruction]
 $script:GuacRestExceptionType = [N2C_GuacAdmin_GuacRestException]
 
 # Module session state: keyed by normalized server URI. This is the ONLY module
@@ -87,5 +89,6 @@ Export-ModuleMember -Function @(
     'Add-GuacUserGroupMember', 'Remove-GuacUserGroupMember', 'Add-GuacUserGroupChildGroup', 'Remove-GuacUserGroupChildGroup',
     'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol',
     'Get-GuacActiveConnection', 'Stop-GuacActiveConnection', 'Get-GuacSharingCredential',
-    'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension'
+    'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension',
+    'New-GuacActiveSession', 'Send-GuacInstruction', 'Receive-GuacInstruction', 'Remove-GuacActiveSession'
 )

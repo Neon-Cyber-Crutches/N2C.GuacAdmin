@@ -27,7 +27,8 @@
         'Add-GuacUserGroupMember', 'Remove-GuacUserGroupMember', 'Add-GuacUserGroupChildGroup', 'Remove-GuacUserGroupChildGroup',
         'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol',
         'Get-GuacActiveConnection', 'Stop-GuacActiveConnection', 'Get-GuacSharingCredential',
-        'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension'
+        'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension',
+        'New-GuacActiveSession', 'Send-GuacInstruction', 'Receive-GuacInstruction', 'Remove-GuacActiveSession'
     )
 
     # Class definitions (N2C_GuacAdmin_GuacSession, N2C_GuacAdmin_GuacRestException).

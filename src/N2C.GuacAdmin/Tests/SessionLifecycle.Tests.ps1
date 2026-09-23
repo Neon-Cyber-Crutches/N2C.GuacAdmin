@@ -273,7 +273,7 @@ Describe 'GuacRestException error contract (via mock server)' {
 }
 
 Describe 'Module manifest and export' {
-    It 'exports exactly the phase 1 + phase 2 cmdlets' {
+    It 'exports exactly the phase 1 + phase 2 + phase 3 + phase 4 cmdlets' {
         $sm = Get-Module N2C.GuacAdmin
         # ExportedFunctions is a plain hashtable: compare as a set, not by order.
         $expected = @(
@@ -287,7 +287,8 @@ Describe 'Module manifest and export' {
             'Add-GuacUserGroupMember', 'Remove-GuacUserGroupMember', 'Add-GuacUserGroupChildGroup', 'Remove-GuacUserGroupChildGroup',
             'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol',
             'Get-GuacActiveConnection', 'Stop-GuacActiveConnection', 'Get-GuacSharingCredential',
-            'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension'
+            'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension',
+            'New-GuacActiveSession', 'Send-GuacInstruction', 'Receive-GuacInstruction', 'Remove-GuacActiveSession'
         )
         $actual = @($sm.ExportedFunctions.Keys)
         $actual.Count | Should -Be $expected.Count

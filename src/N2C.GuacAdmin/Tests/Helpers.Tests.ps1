@@ -6,7 +6,14 @@
 # helpers and their paths must be established in the runtime scope).
 BeforeAll {
     $moduleRoot = Split-Path -Parent $PSScriptRoot
-    foreach ($scriptFile in 'ConvertTo-GuacServerUrl', 'ConvertTo-GuacFormUrlEncoded', 'ConvertTo-GuacMaskedSecret', 'ConvertFrom-GuacSecureString', 'ConvertTo-GuacJson', 'Get-GuacResponseDetails', 'ConvertFrom-GuacErrorBody') {
+    # Import the module first so type variables are set for helpers that use them
+    Import-Module (Join-Path $moduleRoot 'N2C.GuacAdmin.psd1') -Force
+    # Set type variables in this script scope so dot-sourced helpers that
+    # reference $script:Guac*Type variables can find them (AGENTS.md §6.1)
+    $script:GuacInstructionType = [N2C_GuacAdmin_GuacInstruction]
+    $script:GuacActiveSessionType = [N2C_GuacAdmin_GuacActiveSession]
+    $script:GuacRestExceptionType = [N2C_GuacAdmin_GuacRestException]
+    foreach ($scriptFile in 'ConvertTo-GuacServerUrl', 'ConvertTo-GuacFormUrlEncoded', 'ConvertTo-GuacMaskedSecret', 'ConvertFrom-GuacSecureString', 'ConvertTo-GuacJson', 'Get-GuacResponseDetails', 'ConvertFrom-GuacErrorBody', 'ConvertTo-GuacInstructionString', 'ConvertFrom-GuacInstructionString') {
         . (Join-Path $moduleRoot ('Private/{0}.ps1' -f $scriptFile))
     }
 }
@@ -186,5 +193,84 @@ Describe 'Get-GuacResponseHeaderValue' {
 
     It 'returns $null for null headers' {
         Get-GuacResponseHeaderValue -Headers $null -Name 'Content-Type' | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'ConvertTo-GuacInstructionString' {
+    BeforeAll {
+        # Import the module so type literals resolve
+        Import-Module (Join-Path $moduleRoot 'N2C.GuacAdmin.psd1') -Force
+        . (Join-Path $moduleRoot 'Private/ConvertTo-GuacInstructionString.ps1')
+    }
+
+    It 'encodes a simple instruction with no arguments' {
+        $instr = [N2C_GuacAdmin_GuacInstruction]::new('select', @())
+        $result = ConvertTo-GuacInstructionString -Instruction $instr
+        $result | Should -Be '6.select;'
+    }
+
+    It 'encodes an instruction with arguments' {
+        $instr = [N2C_GuacAdmin_GuacInstruction]::new('select', @('abc-123'))
+        $result = ConvertTo-GuacInstructionString -Instruction $instr
+        $result | Should -Be '6.select,7.abc-123;'
+    }
+
+    It 'encodes a size instruction with multiple numeric arguments' {
+        $instr = [N2C_GuacAdmin_GuacInstruction]::new('size', @('1024', '768', '96'))
+        $result = ConvertTo-GuacInstructionString -Instruction $instr
+        $result | Should -Be '4.size,4.1024,3.768,2.96;'
+    }
+
+    It 'encodes using -Opcode and -Arguments directly' {
+        $result = ConvertTo-GuacInstructionString -Opcode 'key' -Arguments @('1', '65', 'true')
+        $result | Should -Be '3.key,1.1,2.65,4.true;'
+    }
+
+    It 'handles empty string arguments' {
+        $instr = [N2C_GuacAdmin_GuacInstruction]::new('name', @(''))
+        $result = ConvertTo-GuacInstructionString -Instruction $instr
+        $result | Should -Be '4.name,0.;'
+    }
+}
+
+Describe 'ConvertFrom-GuacInstructionString' {
+    BeforeAll {
+        Import-Module (Join-Path $moduleRoot 'N2C.GuacAdmin.psd1') -Force
+        . (Join-Path $moduleRoot 'Private/ConvertFrom-GuacInstructionString.ps1')
+    }
+
+    It 'decodes a simple instruction with no arguments' {
+        $instr = ConvertFrom-GuacInstructionString -Raw '6.select;'
+        $instr.Opcode | Should -Be 'select'
+        $instr.Arguments.Length | Should -Be 0
+    }
+
+    It 'decodes an instruction with arguments' {
+        $instr = ConvertFrom-GuacInstructionString -Raw '6.select,7.abc-123;'
+        $instr.Opcode | Should -Be 'select'
+        $instr.Arguments.Length | Should -Be 1
+        $instr.Arguments[0] | Should -Be 'abc-123'
+    }
+
+    It 'decodes a size instruction with multiple arguments' {
+        $instr = ConvertFrom-GuacInstructionString -Raw '4.size,4.1024,3.768,2.96;'
+        $instr.Opcode | Should -Be 'size'
+        $instr.Arguments.Length | Should -Be 3
+        $instr.Arguments[0] | Should -Be '1024'
+        $instr.Arguments[1] | Should -Be '768'
+        $instr.Arguments[2] | Should -Be '96'
+    }
+
+    It 'decodes an instruction with empty string arguments' {
+        $instr = ConvertFrom-GuacInstructionString -Raw '4.name,0.;'
+        $instr.Opcode | Should -Be 'name'
+        $instr.Arguments.Length | Should -Be 1
+        $instr.Arguments[0] | Should -Be ''
+    }
+
+    It 'handles the ready instruction with session ID' {
+        $instr = ConvertFrom-GuacInstructionString -Raw '5.ready,36.123e4567-e89b-12d3-a456-426614174000;'
+        $instr.Opcode | Should -Be 'ready'
+        $instr.Arguments[0] | Should -Be '123e4567-e89b-12d3-a456-426614174000'
     }
 }

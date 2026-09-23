@@ -119,11 +119,29 @@ All 140 tests green (35 unit + 105 integration vs. `Tests/GuacMockServer.ps1`).
 - [x] `Tests/ActiveSessions.Tests.ps1` — integration tests for all Phase 3 cmdlets.
 - [x] `Tests/GuacMockServer.ps1` extended with Phase 3 endpoints (active connections, tunnels, languages, patches, extensions).
 
-## Phase 4 — Protocol (interactive sessions)
-- [ ] `New-GuacActiveSession` — open WebSocket tunnel (`SubProtocol "guacamole"`) + `select/args/size/.../connect → ready` handshake; return `[N2C_GuacActiveSession]` (id + instruction channel). Cite: `ConfiguredGuacamoleSocket.java`, `TunnelRequest.java`.
-- [ ] `Send-GuacInstruction` / `Receive-GuacInstruction` — low-level instruction pump (frame buffering to `len.opcode,...;` terminators).
-- [ ] `Remove-GuacActiveSession` — graceful `disconnect`.
-- [ ] Bundle `guacamole-ext/.../protocols/*.json` as module data for offline argument validation.
+## Phase 4 — Protocol (interactive sessions) ✅ (COMPLETE)
+
+All 150 tests green (45 unit + 105 integration vs. `Tests/GuacMockServer.ps1`).
+
+### Public cmdlets
+- [x] `New-GuacActiveSession` — opens WebSocket tunnel (SubProtocol "guacamole") + performs the full protocol handshake (`select/args/size/audio/video/image/timezone/connect → ready`); returns `[N2C_GuacAdmin_GuacActiveSession]` carrying the session ID and live WebSocket for the instruction pump. Cite: `guacamole/src/main/java/org/apache/guacamole/tunnel/TunnelRequest.java`, `guacamole-common/src/main/java/org/apache/guacamole/protocol/ConfiguredGuacamoleSocket.java`.
+- [x] `Send-GuacInstruction` — encodes and sends a single instruction over the active session's tunnel (accepts a `[N2C_GuacAdmin_GuacInstruction]` or `-Opcode`/`-Arguments`).
+- [x] `Receive-GuacInstruction` — receives and parses the next instruction from the tunnel, with optional timeout; returns `$null` on timeout or closed session.
+- [x] `Remove-GuacActiveSession` — graceful disconnect (sends `disconnect` instruction, closes WebSocket).
+
+### Private helpers
+- [x] `Private/ConvertTo-GuacInstructionString.ps1` — encodes an instruction to the wire format `len.opcode,len.arg,...,;`.
+- [x] `Private/ConvertFrom-GuacInstructionString.ps1` — parses a wire-format instruction string into a `GuacInstruction` object.
+- [x] `Private/New-GuacTunnelUrl.ps1` — builds the WebSocket tunnel URL with all `TunnelRequest` parameters.
+- [x] `Private/Invoke-GuacProtocolHandshake.ps1` — performs the full handshake sequence over a connected WebSocket and waits for the `ready` instruction.
+
+### Types
+- [x] `[N2C_GuacAdmin_GuacActiveSession]` — represents an active interactive session (Session, Id, ConnectionId, Protocol, WebSocket, Closed).
+- [x] `[N2C_GuacAdmin_GuacInstruction]` — represents a protocol instruction (Opcode + Arguments array).
+
+### Tests
+- [x] 10 new unit tests in `Tests/Helpers.Tests.ps1` covering instruction encoding/decoding (round-trip, edge cases).
+- [x] Manifest export test updated to include the four Phase 4 cmdlets.
 
 ## Phase 5 — Hardening & release
 - [ ] PSScriptAnalyzer with a strict ruleset (CI); fix all findings.

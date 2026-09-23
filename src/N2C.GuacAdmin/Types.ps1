@@ -45,6 +45,65 @@ class N2C_GuacAdmin_GuacSession {
     }
 }
 
+class N2C_GuacAdmin_GuacActiveSession {
+    # Represents an active Guacamole protocol session (an interactive connection).
+    #
+    # Created by New-GuacActiveSession, which opens a WebSocket tunnel and
+    # completes the protocol handshake (select/args/size/audio/video/image/
+    # timezone/name/connect). Carries the session ID returned by the `ready`
+    # instruction, the underlying connection ID and protocol, and the live
+    # WebSocket connection used for the instruction pump.
+    #
+    # The WebSocket instance is exposed so callers can manage the instruction
+    # pump via Send-GuacInstruction and Receive-GuacInstruction. Callers MUST
+    # call Remove-GuacActiveSession (or manually close the WebSocket) when
+    # done to release resources and gracefully disconnect on the server.
+    #
+    # Reference: guacamole/src/main/java/org/apache/guacamole/tunnel/websocket/
+    #            WebSocketTunnel.java, guacamole-common/src/main/java/org/apache/
+    #            guacamole/protocol/GuacamoleProtocol.java
+    [N2C_GuacAdmin_GuacSession]$Session = $null
+    [string]$Id = [string]::Empty
+    [string]$ConnectionId = [string]::Empty
+    [string]$Protocol = [string]::Empty
+    [System.Net.WebSockets.ClientWebSocket]$WebSocket = $null
+    [bool]$Closed = $false
+
+    [string]ToString() {
+        return ("N2C.GuacAdmin.GuacActiveSession: Id={0} Connection={1} Protocol={2} Closed={3}" -f $this.Id, $this.ConnectionId, $this.Protocol, $this.Closed)
+    }
+}
+
+class N2C_GuacAdmin_GuacInstruction {
+    # Represents a single Guacamole protocol instruction.
+    #
+    # Wire format: length.opcode,length.arg1,length.arg2,...,length.argN;
+    # where each argument is UTF-8 bytes prefixed by its length. Instructions
+    # are delimited by the semicolon terminator. This object holds the decoded
+    # opcode and arguments as strings for easy manipulation in PowerShell.
+    #
+    # Reference: guacamole-common/src/main/java/org/apache/guacamole/protocol/
+    #            GuacamoleInstruction.java, GuacamoleProtocol.java
+    [string]$Opcode = [string]::Empty
+    [string[]]$Arguments = @()
+
+    # Constructor: opcode + variable arguments
+    N2C_GuacAdmin_GuacInstruction([string]$opcode, [string[]]$arguments) {
+        $this.Opcode = $opcode
+        $this.Arguments = $arguments
+    }
+
+    # Constructor: opcode only
+    N2C_GuacAdmin_GuacInstruction([string]$opcode) {
+        $this.Opcode = $opcode
+        $this.Arguments = @()
+    }
+
+    [string]ToString() {
+        return ("GuacInstruction: {0} ({1} args)" -f $this.Opcode, $this.Arguments.Length)
+    }
+}
+
 class N2C_GuacAdmin_GuacRestException : System.Exception {
     # Terminating exception raised by the REST transport on any failure.
     #

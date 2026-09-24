@@ -102,8 +102,13 @@ function New-GuacConnectionGroup {
 
         $body = ConvertTo-GuacEntityBody -Object $pendingBody -ExcludeProperty @('identifier', 'Identifier')
         $body['parentIdentifier'] = $Parent
+        # Always include an attributes object (empty if not provided)
+        # to satisfy the MySQL storage layer's NOT NULL constraint.
         if ($null -ne $Attributes) {
             $body['attributes'] = $Attributes
+        }
+        elseif ($null -eq $body['attributes']) {
+            $body['attributes'] = @{}
         }
 
         $whatIfTarget = 'connection group'

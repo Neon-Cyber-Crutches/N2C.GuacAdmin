@@ -108,8 +108,82 @@ function New-GuacConnection {
 
         $body = ConvertTo-GuacEntityBody -Object $pendingBody -ExcludeProperty @('identifier', 'Identifier')
         $body['parentIdentifier'] = $Parent
+
+        # Determine the protocol for schema-based parameter completion
+        $connectionProtocol = [string]$body['protocol']
+        if ([string]::IsNullOrWhiteSpace($connectionProtocol) -and -not [string]::IsNullOrWhiteSpace($Protocol)) {
+            $connectionProtocol = $Protocol
+            $body['protocol'] = $connectionProtocol
+        }
+
+        # If a protocol is known, fetch its schema and ensure all required
+        # parameter fields are present (defaulting to empty string). This
+        # matches the behavior of the Guacamole web UI and is required by
+        # some server configurations that expect the complete parameter set.
+        if (-not [string]::IsNullOrWhiteSpace($connectionProtocol)) {
+            $defaultParams = $null
+            try {
+                # Directly fetch the protocol schema to avoid type resolution issues
+                # when calling Get-GuacProtocol from within the same module.
+                $schemaPath = Resolve-GuacContextUrl -DataSource $ctx['DataSource'] -Collection 'schema' -SubPath 'protocols'
+                $protocolsMap = Invoke-GuacRest -Server $ctx['Server'] -Token $ctx['Token'] -Method GET -Path $schemaPath
+
+                if ($null -ne $protocolsMap -and $protocolsMap.PSObject.Properties[$connectionProtocol]) {
+                    $protocolInfo = $protocolsMap.$connectionProtocol
+                    if ($null -ne $protocolInfo) {
+                        # Collect all field names from the protocol's connection forms
+                        $fieldNames = @()
+                        foreach ($form in @($protocolInfo.connectionForms)) {
+                            if ($null -ne $form -and $form.PSObject.Properties['fields']) {
+                                foreach ($f in @($form.fields)) {
+                                    if ([string]::IsNullOrWhiteSpace([string]$f) -eq $false) {
+                                        $fieldNames += [string]$f
+                                    }
+                                }
+                            }
+                        }
+
+                        # Build default parameters with empty strings
+                        $defaultParams = @{}
+                        foreach ($fieldName in $fieldNames) {
+                            $defaultParams[$fieldName] = ''
+                        }
+                    }
+                }
+            }
+            catch {
+                Write-Warning ('Failed to fetch protocol schema for "{0}": {1}. Using provided parameters only.' -f ($connectionProtocol, $_.Exception.Message))
+            }
+
+            # Merge: defaults first, then user-provided parameters override
+            $userParams = $null
+            if ($null -ne $body['parameters']) {
+                $userParams = $body['parameters']
+            }
+            elseif ($null -ne $Parameters) {
+                $userParams = $Parameters
+            }
+
+            $mergedParams = @{}
+            if ($null -ne $defaultParams) {
+                foreach ($key in $defaultParams.Keys) {
+                    $mergedParams[$key] = $defaultParams[$key]
+                }
+            }
+            if ($null -ne $userParams) {
+                foreach ($key in $userParams.Keys) {
+                    $mergedParams[$key] = $userParams[$key]
+                }
+            }
+            $body['parameters'] = $mergedParams
+        }
+
+        # Always include an attributes object (empty if not provided)
         if ($null -ne $Attributes) {
             $body['attributes'] = $Attributes
+        }
+        elseif ($null -eq $body['attributes']) {
+            $body['attributes'] = @{}
         }
 
         $whatIfTarget = 'connection'

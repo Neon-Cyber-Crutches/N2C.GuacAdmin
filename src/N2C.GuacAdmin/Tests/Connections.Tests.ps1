@@ -64,6 +64,21 @@ Describe 'New-GuacConnection' {
         $fetched.Name | Should -Be 'new-conn'
     }
 
+    It 'auto-fills all protocol parameters from schema when only minimal params are provided' {
+        $created = New-GuacConnection -Session $session -Name 'auto-fill-test' -Protocol 'ssh' -Parameters @{ hostname = 'ssh-host.example.com' }
+        $created.Identifier | Should -Not -BeNullOrEmpty
+        $created.Protocol | Should -Be 'ssh'
+
+        # User-provided parameter should be present
+        $created.Parameters['hostname'] | Should -Be 'ssh-host.example.com'
+
+        # Other SSH parameters from the schema should be auto-filled with empty strings
+        $created.Parameters.Keys | Should -Contain 'port'
+        $created.Parameters.Keys | Should -Contain 'username'
+        $created.Parameters.Keys | Should -Contain 'password'
+        $created.Parameters.Keys | Should -Contain 'guac-readonly'
+    }
+
     It 'honors -WhatIf by not creating the connection' {
         $before = @(Get-GuacConnection -Session $session).Count
         # NOTE: the "What if: ..." line printed above this test is the engine's

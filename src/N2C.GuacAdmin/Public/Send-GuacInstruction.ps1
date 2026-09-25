@@ -53,6 +53,10 @@ function Send-GuacInstruction {
         $segment = New-Object System.ArraySegment[byte] -ArgumentList $bytes
         [void]$Session.WebSocket.SendAsync($segment, [System.Net.WebSockets.WebSocketMessageType]::Text, $true, [System.Threading.CancellationToken]::None).GetAwaiter().GetResult()
 
-        Write-Verbose ("N2C.GuacAdmin: sent instruction '{0}'" -f ($Instruction ? $Instruction.Opcode : $Opcode))
+        $verboseOpcode = $Opcode
+        if ($null -ne $Instruction -and $null -ne $Instruction.Opcode) {
+            $verboseOpcode = $Instruction.Opcode
+        }
+        Write-Verbose ("N2C.GuacAdmin: sent instruction '{0}'" -f $verboseOpcode)
     }
 }

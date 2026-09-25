@@ -57,6 +57,11 @@ Describe 'Get-GuacConnectionGroup' {
         $group.ParentGroupName | Should -Be 'prod'
     }
 
+    It 'sets ParentGroupName to ROOT for top-level groups' {
+        $group = Get-GuacConnectionGroup -Session $session -Id 'group-1'
+        $group.ParentGroupName | Should -Be 'ROOT'
+    }
+
     It 'skips ParentGroupName resolution when -ResolveParentGroupName is false' {
         $group = Get-GuacConnectionGroup -Session $session -Id 'group-2' -ResolveParentGroupName:$false
         $group.PSObject.Properties['ParentGroupName'] | Should -Be $null

@@ -126,7 +126,7 @@ Get-GuacConnection | Stop-GuacActiveConnection -Session $g   # -Session via Valu
 Implemented through Phase 4 (2026-09; full detail + per-cmdlet endpoints in [`src/N2C.GuacAdmin/TODO.md`](src/N2C.GuacAdmin/TODO.md)):
 
 - **Auth (Phase 1):** `New-GuacSession`, `Get-GuacSession`, `Remove-GuacSession`, `Test-GuacSession`
-- **Entities (Phase 2):** `Get/New/Update/Remove-GuacConnection` (`-ResolveParentGroupName` on the Get, adds `ParentGroupName`), `-GuacConnectionGroup` (`-Tree` on the Get, `-ResolveParentGroupName` on the Get, adds `ParentGroupName`), `-GuacUser` (`-Permissions`/`-EffectivePermissions` on the Get), `-GuacUserGroup`, `-GuacSharingProfile` (`-ResolveConnectionName` on the Get, adds `PrimaryConnectionName`)
+- **Entities (Phase 2):** `Get/New/Update/Remove-GuacConnection` (`-ResolveParentGroupName` on the Get, adds `ParentGroupName`), `-GuacConnectionGroup` (`-ResolveParentGroupName` on the Get, adds `ParentGroupName`; tree retrieval moved to `Get-GuacConnectionGroupTree`), `Get-GuacConnectionGroupTree` (hierarchical tree via `connectionGroups/{id}/tree`, `-Permission` filters connections within the tree), `-GuacUser` (`-Permissions`/`-EffectivePermissions` on the Get), `-GuacUserGroup`, `-GuacSharingProfile` (`-ResolveConnectionName` on the Get, adds `PrimaryConnectionName`)
 - **Users (Phase 2):** `Set-GuacUserPassword`
 - **Membership (Phase 2):** `Add/Remove-GuacUserGroupMember` (`memberUsers`), `Add/Remove-GuacUserGroupChildGroup` (`memberUserGroups`)
 - **Permissions (Phase 2):** `Add-GuacPermission` / `Remove-GuacPermission` — one cmdlet covers all subject/target kinds (`-User`/`-UserGroup` × `-Connection`/`-ConnectionGroup`/`-SharingProfile`/`-ActiveConnection`/`-System`) over `PATCH .../{users|userGroups}/{id}/permissions`

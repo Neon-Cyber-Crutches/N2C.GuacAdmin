@@ -39,18 +39,6 @@ Describe 'Get-GuacConnectionGroup' {
         $group.Type | Should -Be 'ORGANIZATIONAL'
     }
 
-    # TODO: Fix -Tree parameter (Issue #1). The mock server returns a tree
-    # response that Invoke-GuacDirectory tries to treat as a map of entries.
-    It 'returns a group tree with descendants under -Tree' -Skip {
-        $tree = Get-GuacConnectionGroup -Session $session -Id 'group-1' -Tree
-        $tree.Identifier | Should -Be 'group-1'
-        $children = @($tree.ChildConnectionGroups)
-        $childIds = @($children | ForEach-Object {
-            if ($_ -is [System.Collections.IDictionary]) { $_.Keys | ForEach-Object { $_ } }
-            else { $_.PSObject.Properties.Name }
-        })
-        $childIds | Should -Contain 'group-2'
-    }
 
     It 'resolves ParentGroupName by default for groups with a parent' {
         $group = Get-GuacConnectionGroup -Session $session -Id 'group-2'
@@ -65,6 +53,25 @@ Describe 'Get-GuacConnectionGroup' {
     It 'skips ParentGroupName resolution when -ResolveParentGroupName is false' {
         $group = Get-GuacConnectionGroup -Session $session -Id 'group-2' -ResolveParentGroupName:$false
         $group.PSObject.Properties['ParentGroupName'] | Should -Be $null
+    }
+}
+
+Describe 'Get-GuacConnectionGroupTree' {
+    It 'returns a group tree with child groups' {
+        $tree = Get-GuacConnectionGroupTree -Session $session -Id 'group-1'
+        $tree.Identifier | Should -Be 'group-1'
+        $tree.Name | Should -Be 'prod'
+        $childGroups = $tree.ChildConnectionGroups
+        $childGroups['group-2'] | Should -Not -BeNullOrEmpty
+    }
+
+    It 'resolves ParentGroupName for the root group by default' {
+        $tree = Get-GuacConnectionGroupTree -Session $session -Id 'group-1'
+        $tree.ParentGroupName | Should -Be 'ROOT'
+    }
+
+    It 'throws when no group with the given id exists' {
+        { Get-GuacConnectionGroupTree -Session $session -Id 'nonexistent-group' -ErrorAction Stop } | Should -Throw
     }
 }
 

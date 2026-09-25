@@ -44,6 +44,16 @@ Describe 'Get-GuacActiveConnection' {
     It 'throws for an unknown active connection id' {
         { Get-GuacActiveConnection -Session $session -Id 'does-not-exist' -ErrorAction Stop } | Should -Throw
     }
+
+    It 'resolves ConnectionName by default' {
+        $activeConn = Get-GuacActiveConnection -Session $session -Id 'active-1'
+        $activeConn.ConnectionName | Should -Be 'test-connection'
+    }
+
+    It 'skips ConnectionName resolution when -ResolveConnectionName is false' {
+        $activeConn = Get-GuacActiveConnection -Session $session -Id 'active-1' -ResolveConnectionName:$false
+        $activeConn.PSObject.Properties['ConnectionName'] | Should -Be $null
+    }
 }
 
 Describe 'Get-GuacSharingCredential' {

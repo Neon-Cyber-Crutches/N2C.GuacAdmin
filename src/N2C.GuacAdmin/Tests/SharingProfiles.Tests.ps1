@@ -37,6 +37,16 @@ Describe 'Get-GuacSharingProfile' {
         $sh_profile.PrimaryConnectionIdentifier | Should -Be 'conn-1'
         $sh_profile.Parameters['guac-readonly'] | Should -Be 'true'
     }
+
+    It 'resolves PrimaryConnectionName by default' {
+        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'readonly'
+        $sh_profile.PrimaryConnectionName | Should -Be 'test-connection'
+    }
+
+    It 'skips PrimaryConnectionName resolution when -ResolveConnectionName is false' {
+        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'readonly' -ResolveConnectionName:$false
+        $sh_profile.PSObject.Properties['PrimaryConnectionName'] | Should -Be $null
+    }
 }
 
 Describe 'New-GuacSharingProfile' {

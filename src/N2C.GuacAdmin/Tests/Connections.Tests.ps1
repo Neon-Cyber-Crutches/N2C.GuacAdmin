@@ -46,6 +46,30 @@ Describe 'Get-GuacConnection' {
     It 'throws a terminating error for an unknown id' {
         { Get-GuacConnection -Session $session -Id 'does-not-exist' -ErrorAction Stop } | Should -Throw
     }
+
+    It 'resolves ParentGroupName by default for connections with a parent group' {
+        # Move conn-1 to group-1 to test parent resolution
+        Update-GuacConnection -Session $session -Id 'conn-1' -Replace @{
+            name = 'test-connection'
+            protocol = 'rdp'
+            parameters = @{ hostname = 'host.example.com' }
+            parentIdentifier = 'group-1'
+        } | Out-Null
+        $conn = Get-GuacConnection -Session $session -Id 'conn-1'
+        $conn.ParentGroupName | Should -Be 'prod'
+        # Move it back
+        Update-GuacConnection -Session $session -Id 'conn-1' -Replace @{
+            name = 'test-connection'
+            protocol = 'rdp'
+            parameters = @{ hostname = 'host.example.com' }
+            parentIdentifier = 'ROOT'
+        } | Out-Null
+    }
+
+    It 'skips ParentGroupName resolution when -ResolveParentGroupName is false' {
+        $conn = Get-GuacConnection -Session $session -Id 'conn-1' -ResolveParentGroupName:$false
+        $conn.PSObject.Properties['ParentGroupName'] | Should -Be $null
+    }
 }
 
 Describe 'New-GuacConnection' {

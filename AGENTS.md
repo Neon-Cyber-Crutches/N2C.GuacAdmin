@@ -126,17 +126,18 @@ Get-GuacConnection | Stop-GuacActiveConnection -Session $g   # -Session via Valu
 Implemented through Phase 4 (2026-09; full detail + per-cmdlet endpoints in [`src/N2C.GuacAdmin/TODO.md`](src/N2C.GuacAdmin/TODO.md)):
 
 - **Auth (Phase 1):** `New-GuacSession`, `Get-GuacSession`, `Remove-GuacSession`, `Test-GuacSession`
-- **Entities (Phase 2):** `Get/New/Update/Remove-GuacConnection`, `-GuacConnectionGroup` (`-Tree` on the Get), `-GuacUser` (`-Permissions`/`-EffectivePermissions` on the Get), `-GuacUserGroup`, `-GuacSharingProfile`
+- **Entities (Phase 2):** `Get/New/Update/Remove-GuacConnection` (`-ResolveParentGroupName` on the Get, adds `ParentGroupName`), `-GuacConnectionGroup` (`-Tree` on the Get, `-ResolveParentGroupName` on the Get, adds `ParentGroupName`), `-GuacUser` (`-Permissions`/`-EffectivePermissions` on the Get), `-GuacUserGroup`, `-GuacSharingProfile` (`-ResolveConnectionName` on the Get, adds `PrimaryConnectionName`)
 - **Users (Phase 2):** `Set-GuacUserPassword`
 - **Membership (Phase 2):** `Add/Remove-GuacUserGroupMember` (`memberUsers`), `Add/Remove-GuacUserGroupChildGroup` (`memberUserGroups`)
 - **Permissions (Phase 2):** `Add-GuacPermission` / `Remove-GuacPermission` — one cmdlet covers all subject/target kinds (`-User`/`-UserGroup` × `-Connection`/`-ConnectionGroup`/`-SharingProfile`/`-ActiveConnection`/`-System`) over `PATCH .../{users|userGroups}/{id}/permissions`
 - **Read-only (Phase 2):** `Get-GuacHistory` (per-user connections/users), `Get-GuacSchema` (attribute/parameter sets), `Get-GuacProtocol`
-- **Active sessions (REST, Phase 3 — done):** `Get-GuacActiveConnection` (list/by id), `Stop-GuacActiveConnection` (DELETE by id, SupportsShouldProcess), `Get-GuacSharingCredential` (requires `-SharingProfile`)
+- **Active sessions (REST, Phase 3 — done):** `Get-GuacActiveConnection` (list/by id, `-ResolveConnectionName` on the Get, adds `ConnectionName`), `Stop-GuacActiveConnection` (DELETE by id, SupportsShouldProcess), `Get-GuacSharingCredential` (requires `-SharingProfile`)
 - **Tunnels (read-only, Phase 3 — done):** `Get-GuacTunnel` (list of tunnel UUIDs)
 - **Languages/Patches/Extensions (Phase 3 — done):** `Get-GuacLanguage`, `Get-GuacPatches`, `Get-GuacExtension`
 - **Protocol (sessions, Phase 4 — done):** `New-GuacActiveSession` (opens WebSocket tunnel + handshake, returns `[N2C_GuacAdmin_GuacActiveSession]` with Id + WebSocket), `Send-GuacInstruction` / `Receive-GuacInstruction` (low-level instruction pump), `Remove-GuacActiveSession` (graceful `disconnect`)
 - `Update-*` cmdlets accept a JSON Patch operations array (`-Patch [ordered]@{op=...; path=...}`) as the canonical mutation input, mirroring the API; `-Replace` (full body) is also accepted where the API supports full PUT.
 - Entity `Get-*` return `PSCustomObject`s carrying `Identifier` (users: the username) so `Get-* | Update-/Remove-*` works via `ValueFromPipelineByPropertyName`; when neither `-Session` nor `-Server` is bound and exactly one default session is registered, the resolver falls back to it.
+- **Name resolution (Issue #10):** `Get-GuacConnection`, `Get-GuacConnectionGroup`, `Get-GuacSharingProfile`, and `Get-GuacActiveConnection` resolve ID references to human-readable names by default: `Get-GuacConnection` and `Get-GuacConnectionGroup` add `ParentGroupName` (via `-ResolveParentGroupName`), `Get-GuacSharingProfile` adds `PrimaryConnectionName`, and `Get-GuacActiveConnection` adds `ConnectionName` (via `-ResolveConnectionName`). All resolution switches default to `$true`; set to `$false` for raw API data. Resolution uses `Invoke-GuacDirectory` internally to avoid recursive session-resolution issues. If a referenced entity is missing, resolution falls back to `'(unknown)'` with a `Write-Verbose` message.
 
 ### 5.4. Protocol client notes (Phase 4 — done)
 - `New-GuacActiveSession` opens a `System.Net.WebSockets.ClientWebSocket` and performs the full handshake: `select` → `args` → `size` → `audio` → `video` → `image` → `timezone` → `connect`, then waits for the `ready` instruction which carries the session ID.

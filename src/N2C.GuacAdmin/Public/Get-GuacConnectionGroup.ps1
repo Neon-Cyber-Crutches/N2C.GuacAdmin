@@ -95,14 +95,19 @@ function Get-GuacConnectionGroup {
         $path = Resolve-GuacContextUrl -DataSource $ctx['DataSource'] -Collection 'connectionGroups' -Id $Id -SubPath 'tree' -Query $query
         $response = Invoke-GuacRest -Server $ctx['Server'] -Token $ctx['Token'] -Method GET -Path $path
         $tree = Get-GuacEntityResponse -Response $response -Identifier $Id
-        if ($ResolveParentGroupName -and $tree.ParentIdentifier -and $tree.ParentIdentifier -ne 'ROOT') {
-            try {
-                $parent = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $tree.ParentIdentifier
-                $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parent.Name
+        if ($ResolveParentGroupName -and $tree.ParentIdentifier) {
+            if ($tree.ParentIdentifier -eq 'ROOT') {
+                $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
             }
-            catch {
-                Write-Verbose ('Get-GuacConnectionGroup: could not resolve parent group name for {0}' -f $tree.ParentIdentifier)
-                $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue '(unknown)'
+            else {
+                try {
+                    $parent = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $tree.ParentIdentifier
+                    $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parent.Name
+                }
+                catch {
+                    Write-Verbose ('Get-GuacConnectionGroup: could not resolve parent group name for {0}' -f $tree.ParentIdentifier)
+                    $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue '(unknown)'
+                }
             }
         }
         return $tree
@@ -110,14 +115,19 @@ function Get-GuacConnectionGroup {
 
     if (-not [string]::IsNullOrWhiteSpace($Id)) {
         $group = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $Id
-        if ($ResolveParentGroupName -and $group.ParentIdentifier -and $group.ParentIdentifier -ne 'ROOT') {
-            try {
-                $parent = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $group.ParentIdentifier
-                $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parent.Name
+        if ($ResolveParentGroupName -and $group.ParentIdentifier) {
+            if ($group.ParentIdentifier -eq 'ROOT') {
+                $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
             }
-            catch {
-                Write-Verbose ('Get-GuacConnectionGroup: could not resolve parent group name for {0}' -f $group.ParentIdentifier)
-                $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue '(unknown)'
+            else {
+                try {
+                    $parent = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $group.ParentIdentifier
+                    $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parent.Name
+                }
+                catch {
+                    Write-Verbose ('Get-GuacConnectionGroup: could not resolve parent group name for {0}' -f $group.ParentIdentifier)
+                    $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue '(unknown)'
+                }
             }
         }
         return $group
@@ -138,8 +148,13 @@ function Get-GuacConnectionGroup {
             }
         }
         foreach ($group in $groups) {
-            if ($group.ParentIdentifier -and $group.ParentIdentifier -ne 'ROOT') {
-                $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parentMap[$group.ParentIdentifier]
+            if ($group.ParentIdentifier) {
+                if ($group.ParentIdentifier -eq 'ROOT') {
+                    $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
+                }
+                else {
+                    $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parentMap[$group.ParentIdentifier]
+                }
             }
         }
     }

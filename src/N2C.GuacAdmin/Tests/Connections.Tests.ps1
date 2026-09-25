@@ -70,6 +70,11 @@ Describe 'Get-GuacConnection' {
         $conn = Get-GuacConnection -Session $session -Id 'conn-1' -ResolveParentGroupName:$false
         $conn.PSObject.Properties['ParentGroupName'] | Should -Be $null
     }
+
+    It 'sets ParentGroupName to ROOT for top-level connections' {
+        $conn = Get-GuacConnection -Session $session -Id 'conn-2'
+        $conn.ParentGroupName | Should -Be 'ROOT'
+    }
 }
 
 Describe 'New-GuacConnection' {

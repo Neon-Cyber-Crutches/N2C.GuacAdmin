@@ -56,7 +56,11 @@ function Invoke-GuacDirectory {
 
         [Parameter(Mandatory = $false)]
         [AllowNull()]
-        [object] $Body
+        [object] $Body,
+
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [string[]] $Permission
     )
 
     $server = [string]$Context['Server']
@@ -65,7 +69,11 @@ function Invoke-GuacDirectory {
 
     switch ($Action) {
         'List' {
-            $path = Resolve-GuacContextUrl -DataSource $dataSource -Collection $Collection
+            $query = [string]::Empty
+            if ($null -ne $Permission -and $Permission.Count -gt 0) {
+                $query = ('permission={0}' -f ($Permission -join '&permission='))
+            }
+            $path = Resolve-GuacContextUrl -DataSource $dataSource -Collection $Collection -Query $query
             $map = Invoke-GuacRest -Server $server -Token $token -Method GET -Path $path
             if ($null -eq $map) {
                 return

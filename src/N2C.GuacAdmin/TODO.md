@@ -143,6 +143,28 @@ All 150 tests green (45 unit + 105 integration vs. `Tests/GuacMockServer.ps1`).
 - [x] 10 new unit tests in `Tests/Helpers.Tests.ps1` covering instruction encoding/decoding (round-trip, edge cases).
 - [x] Manifest export test updated to include the four Phase 4 cmdlets.
 
+## Phase 4.5 — Get-GuacConnectionGroupTree split (Issue #1) ✅ (COMPLETE)
+
+All 163 tests green (45 unit + 118 integration vs. `Tests/GuacMockServer.ps1`).
+
+### Background
+Issue #1 reported that `-Tree` in `Get-GuacConnectionGroup` was broken. The tree
+functionality was extracted into a dedicated cmdlet `Get-GuacConnectionGroupTree`
+because tree retrieval has fundamentally different semantics from flat list/get
+operations and allows independent evolution of display and filtering features.
+
+### Changes
+- [x] `Get-GuacConnectionGroupTree` — new public cmdlet; mandatory `-Id`, optional `-Permission` (filters connections within the tree), `-ResolveParentGroupName` for the root group. Direct REST call to `connectionGroups/{id}/tree`.
+- [x] `Get-GuacConnectionGroup` — simplified to flat list/get semantics only; removed `-Tree` switch and tree code block; retained `-Permission` (flat-list permission filtering per `DirectoryResource.getObjects`).
+- [x] `Invoke-GuacDirectory` — added optional `-Permission` parameter to the List action to support permission-based filtering on flat directory listings.
+- [x] Updated `N2C.GuacAdmin.psd1` and `N2C.GuacAdmin.psm1` to export the new cmdlet.
+- [x] Updated tests: moved tree tests to new `Describe 'Get-GuacConnectionGroupTree'` block; fixed assertions to match mock data structure; updated export count test.
+- [x] Updated documentation in `AGENTS.md` §5.3.
+
+### Test results
+- 163 tests passed (0 failed, 0 skipped)
+- Lint clean (PSScriptAnalyzer, no findings)
+
 ## Phase 5 — Hardening & release
 - [ ] PSScriptAnalyzer with a strict ruleset (CI); fix all findings.
 - [ ] GitHub Actions: PSScriptAnalyzer + Pester (unit + integration) + module publish dry-run.

@@ -8,11 +8,7 @@ function Get-GuacConnectionGroup {
         - without -Id, the full collection (DirectoryResource.getObjects),
           with each entry wrapped so it carries an Identifier property;
         - with -Id, a single group by identifier
-          (DirectoryObjectResource.getObject);
-        - with -Id and -Tree, the group plus all its descendants
-          (ConnectionGroupResource.getConnectionGroupTree, GET
-          connectionGroups/{id}/tree), with childConnectionGroups and
-          childConnections populated.
+          (DirectoryObjectResource.getObject).
 
         Each returned object is a [PSCustomObject] mirroring the
         APIConnectionGroup fields (name, type, parentIdentifier,
@@ -23,13 +19,12 @@ function Get-GuacConnectionGroup {
         By default, -ResolveParentGroupName is $true and the cmdlet resolves
         each parentIdentifier to a human-readable connection group name, adding
         a ParentGroupName property. Use -ResolveParentGroupName:$false to skip
-        resolution for raw API data. For -Tree results, only the root group's
-        parent name is resolved.
+        resolution for raw API data.
 
-        The -Permission parameter (list) filters the tree to connections the
-        current user holds any of the given permissions for; it applies to
-        the -Tree form only, matching the server's "permission" query
-        parameter.
+        The -Permission parameter (list) filters the returned groups to those
+        for which the current user holds any of the given permissions, matching
+        the server's "permission" query parameter on the directory listing
+        endpoint.
 
         Reference (Apache Guacamole 1.6.0):
         - guacamole/src/main/java/org/apache/guacamole/rest/session/UserContextResource.java
@@ -44,10 +39,10 @@ function Get-GuacConnectionGroup {
         Get-GuacConnectionGroup
 
     .EXAMPLE
-        Get-GuacConnectionGroup -Id 'group-id' -Tree
+        Get-GuacConnectionGroup -Id 'group-id'
 
     .EXAMPLE
-        Get-GuacConnectionGroup -Id 'group-id' -Tree -Permission READ, UPDATE
+        Get-GuacConnectionGroup -Permission READ, UPDATE
 
     .EXAMPLE
         Get-GuacConnectionGroup | Select-Object Name, ParentGroupName
@@ -75,9 +70,6 @@ function Get-GuacConnectionGroup {
         [string] $Id = [string]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [switch] $Tree,
-
-        [Parameter(Mandatory = $false)]
         [ValidateSet('READ', 'UPDATE', 'DELETE', 'ADMINISTER')]
         [string[]] $Permission,
 
@@ -86,32 +78,6 @@ function Get-GuacConnectionGroup {
     )
 
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroup'
-
-    if ($Tree) {
-        $query = [string]::Empty
-        if ($null -ne $Permission -and $Permission.Count -gt 0) {
-            $query = ('permission={0}' -f ($Permission -join '&permission='))
-        }
-        $path = Resolve-GuacContextUrl -DataSource $ctx['DataSource'] -Collection 'connectionGroups' -Id $Id -SubPath 'tree' -Query $query
-        $response = Invoke-GuacRest -Server $ctx['Server'] -Token $ctx['Token'] -Method GET -Path $path
-        $tree = Get-GuacEntityResponse -Response $response -Identifier $Id
-        if ($ResolveParentGroupName -and $tree.ParentIdentifier) {
-            if ($tree.ParentIdentifier -eq 'ROOT') {
-                $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
-            }
-            else {
-                try {
-                    $parent = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $tree.ParentIdentifier
-                    $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parent.Name
-                }
-                catch {
-                    Write-Verbose ('Get-GuacConnectionGroup: could not resolve parent group name for {0}' -f $tree.ParentIdentifier)
-                    $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue '(unknown)'
-                }
-            }
-        }
-        return $tree
-    }
 
     if (-not [string]::IsNullOrWhiteSpace($Id)) {
         $group = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $Id
@@ -133,7 +99,7 @@ function Get-GuacConnectionGroup {
         return $group
     }
 
-    $groups = @(Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'List')
+    $groups = @(Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'List' -Permission $Permission)
     if ($ResolveParentGroupName -and $groups.Count -gt 0) {
         $parentIds = @($groups | ForEach-Object { if ($_.ParentIdentifier -and $_.ParentIdentifier -ne 'ROOT') { $_.ParentIdentifier } }) | Select-Object -Unique
         $parentMap = @{}

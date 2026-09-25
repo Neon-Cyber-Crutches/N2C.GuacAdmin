@@ -54,6 +54,20 @@ Describe 'Get-GuacUser' {
     }
 }
 
+Describe 'Get-GuacUser filters' {
+    It 'filters by exact username' {
+        $results = @(Get-GuacUser -Session $session -Name 'jdoe')
+        $results.Count | Should -Be 1
+        $results[0].Username | Should -Be 'jdoe'
+    }
+
+    It 'filters by username wildcard' {
+        $results = @(Get-GuacUser -Session $session -Name 'j*')
+        $results.Count | Should -Be 1
+        $results[0].Username | Should -Be 'jdoe'
+    }
+}
+
 Describe 'New-GuacUser' {
     It 'creates a user from a PSCredential' {
         $cred = [PSCredential]::new(

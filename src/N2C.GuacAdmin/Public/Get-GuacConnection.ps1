@@ -25,6 +25,12 @@ function Get-GuacConnection {
         UPDATE permission on the connection (or ADMINISTER), which the server
         enforces in ConnectionResource.getConnectionParameters.
 
+        Filter parameters (-Name, -Protocol) perform client-side filtering:
+        the full collection is fetched and then filtered locally. This is
+        acceptable for typical deployment sizes. -Id takes precedence over
+        filter parameters; if both are specified, -Id wins and filters are
+        ignored with a warning.
+
         Reference (Apache Guacamole 1.6.0):
         - guacamole/src/main/java/org/apache/guacamole/rest/session/UserContextResource.java
           (@Path("connections"))
@@ -41,7 +47,13 @@ function Get-GuacConnection {
         Get-GuacConnection -Session $session -Id '8b1f2c3d-...'
 
     .EXAMPLE
-        Get-GuacConnection | Where-Object { $_.Protocol -eq 'rdp' }
+        Get-GuacConnection -Name "prod-*"
+
+    .EXAMPLE
+        Get-GuacConnection -Protocol ssh
+
+    .EXAMPLE
+        Get-GuacConnection -Name "*web*" -Protocol ssh
 
     .EXAMPLE
         Get-GuacConnection | Select-Object Name, ParentGroupName, Protocol
@@ -69,12 +81,23 @@ function Get-GuacConnection {
         [string] $Id = [string]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $Name = [string]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $Protocol = [string]::Empty,
+
+        [Parameter(Mandatory = $false)]
         [bool] $ResolveParentGroupName = $true
     )
 
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnection'
 
     if (-not [string]::IsNullOrWhiteSpace($Id)) {
+        if (-not [string]::IsNullOrWhiteSpace($Name) -or -not [string]::IsNullOrWhiteSpace($Protocol)) {
+            Write-Warning 'Both -Id and filter parameters (-Name/-Protocol) were specified. -Id takes precedence; filters are ignored.'
+        }
         $conn = Invoke-GuacDirectory -Context $ctx -Collection 'connections' -Action 'Get' -Id $Id
         if ($ResolveParentGroupName -and -not [string]::IsNullOrWhiteSpace($conn.ParentIdentifier)) {
             if ($conn.ParentIdentifier -eq 'ROOT') {
@@ -95,6 +118,14 @@ function Get-GuacConnection {
     }
 
     $connections = @(Invoke-GuacDirectory -Context $ctx -Collection 'connections' -Action 'List')
+
+    # Client-side filtering
+    if (-not [string]::IsNullOrWhiteSpace($Name)) {
+        $connections = @($connections | Where-Object { $_.Name -like $Name })
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Protocol)) {
+        $connections = @($connections | Where-Object { $_.Protocol -eq $Protocol })
+    }
     if ($ResolveParentGroupName -and $connections.Count -gt 0) {
         $groupIds = @($connections | ForEach-Object { if ($_.ParentIdentifier -and $_.ParentIdentifier -ne 'ROOT') { $_.ParentIdentifier } }) | Select-Object -Unique
         $groupMap = @{}

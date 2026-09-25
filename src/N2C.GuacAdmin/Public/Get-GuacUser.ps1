@@ -30,6 +30,11 @@ function Get-GuacUser {
         "effectivePermissions" property (GET users/{id}/effectivePermissions).
         The two switches may be combined.
 
+        The -Name parameter performs client-side filtering by username using
+        PowerShell's -like semantics (wildcards supported). -Id takes
+        precedence; if both are specified, -Id wins and the filter is ignored
+        with a warning.
+
         Reference (Apache Guacamole 1.6.0):
         - guacamole/src/main/java/org/apache/guacamole/rest/session/UserContextResource.java
           (@Path("users"))
@@ -47,6 +52,9 @@ function Get-GuacUser {
 
     .EXAMPLE
         Get-GuacUser -Id 'jdoe' -Permissions
+
+    .EXAMPLE
+        Get-GuacUser -Name "j*"
 
     .EXAMPLE
         Get-GuacUser -Id 'jdoe' -EffectivePermissions | Select-Object effectivePermissions
@@ -71,6 +79,10 @@ function Get-GuacUser {
         [string] $Id = [string]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $Name = [string]::Empty,
+
+        [Parameter(Mandatory = $false)]
         [switch] $Permissions,
 
         [Parameter(Mandatory = $false)]
@@ -78,6 +90,12 @@ function Get-GuacUser {
     )
 
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUser'
+
+    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+            Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
+        }
+    }
 
     # NOTE: switch values are forwarded with the colon syntax (-Direct:$Permissions).
     # The value form (-Direct $Permissions) makes PowerShell treat the switch as a
@@ -89,6 +107,11 @@ function Get-GuacUser {
     }
 
     $users = @(Invoke-GuacDirectory -Context $ctx -Collection 'users' -Action 'List')
+
+    # Client-side filtering (users have a 'username' field, not 'name')
+    if (-not [string]::IsNullOrWhiteSpace($Name)) {
+        $users = @($users | Where-Object { $_.Username -like $Name })
+    }
     if ($Permissions -or $EffectivePermissions) {
         foreach ($user in $users) {
             Write-Output (Get-GuacUserPermissions -User $user -Context $ctx -Direct:$Permissions -Effective:$EffectivePermissions)

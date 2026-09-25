@@ -8,8 +8,8 @@ function Test-GuacSession {
         [N2C_GuacAdmin_GuacSession] and reports whether the server still
         accepts it. The server always returns 200 for a valid token
         (SessionResource.checkValidity); an invalid or expired token is
-        rejected with a 401/404 by the token validation layer before the
-        resource is reached, which this cmdlet converts into $false.
+        rejected with a 401, 403, or 404 by the token validation layer
+        before the resource is reached, which this cmdlet converts into $false.
 
         The session object can be supplied directly (-Session, also from the
         pipeline) or resolved from the module default state for -Server.
@@ -83,7 +83,9 @@ function Test-GuacSession {
                 throw
             }
             $restError = $_.Exception
-            if ($restError.StatusCode -eq 401 -or $restError.StatusCode -eq 404) {
+            # Guacamole may return 401 (unauthorized), 403 (forbidden), or 404 (not found)
+            # for an invalid or expired token depending on configuration/version.
+            if ($restError.StatusCode -eq 401 -or $restError.StatusCode -eq 403 -or $restError.StatusCode -eq 404) {
                 return $false
             }
             throw

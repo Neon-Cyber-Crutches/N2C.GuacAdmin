@@ -53,9 +53,9 @@ function Get-GuacConnectionGroupTree {
         [AllowEmptyString()]
         [string] $DataSource = [string]::Empty,
 
-        [Parameter(Mandatory = $true, Position = 0)]
+        [Parameter(Mandatory = $false, Position = 0)]
         [AllowEmptyString()]
-        [string] $Id,
+        [string] $Id = 'ROOT',
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('READ', 'UPDATE', 'DELETE', 'ADMINISTER')]

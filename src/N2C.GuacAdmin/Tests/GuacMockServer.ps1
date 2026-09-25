@@ -376,8 +376,15 @@ function Get-MockBool {
 # Build the connection group tree (ConnectionGroupResource.getConnectionGroupTree).
 function Get-MockGroupTree {
     param ($Ctx, [string] $Id)
-    $group = $Ctx['connectionGroups'][$Id]
-    if ($null -eq $group) { return $null }
+
+    # ROOT is an implicit root group that always exists, even with no entities.
+    if ($Id -eq 'ROOT') {
+        $group = [ordered]@{ name = 'ROOT'; type = 'ORGANIZATIONAL'; parentIdentifier = ''; attributes = @{} }
+    }
+    else {
+        $group = $Ctx['connectionGroups'][$Id]
+        if ($null -eq $group) { return $null }
+    }
 
     $children = [ordered]@{}
     foreach ($otherId in @($Ctx['connectionGroups'].Keys)) {
@@ -796,7 +803,7 @@ while ($listener.IsListening) {
                 }
                 else {
                     $id = [uri]::UnescapeDataString($segments[2])
-                    if (-not $store.ContainsKey($id)) {
+                    if (-not $store.ContainsKey($id) -and -not ($collection -eq 'connectionGroups' -and $id -eq 'ROOT')) {
                         Send-ApiError -Context $context -Code 404 -Type 'NOT_FOUND' -Message ('No such object: ' + $id)
                         continue
                     }

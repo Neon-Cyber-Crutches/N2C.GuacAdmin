@@ -73,6 +73,12 @@ Describe 'Get-GuacConnectionGroupTree' {
     It 'throws when no group with the given id exists' {
         { Get-GuacConnectionGroupTree -Session $session -Id 'nonexistent-group' -ErrorAction Stop } | Should -Throw
     }
+
+    It 'returns the ROOT tree by default when -Id is omitted' {
+        $tree = Get-GuacConnectionGroupTree -Session $session
+        $tree.Identifier | Should -Be 'ROOT'
+        $tree.Name | Should -Be 'ROOT'
+    }
 }
 
 Describe 'New-GuacConnectionGroup' {

@@ -197,3 +197,4 @@ Phase 2 and 3 additions (verified on the same machine during the entity CRUD and
 - Do not treat `ANALYSIS/guacamole-powershell/` as a codebase to edit — it is a read-only reference.
 - Do not treat `ANALYSIS/guacamole-rest-api-documentation/` as authoritative — cross-check against 1.6.0 source.
 - Keep the module directory name/structure consistent with §2 once phase 1 starts; if renamed, update this file.
+- **Testing shell priority:** always use `pwsh` (PowerShell 7+) as the primary shell for running tests, linting, and module operations. Use Windows PowerShell 5.1 (`powershell.exe`) only as a secondary verification step, since `pwsh` is faster, cross-platform, and the default development environment.

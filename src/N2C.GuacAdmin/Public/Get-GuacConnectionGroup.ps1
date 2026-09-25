@@ -26,6 +26,11 @@ function Get-GuacConnectionGroup {
         the server's "permission" query parameter on the directory listing
         endpoint.
 
+        The -Name parameter performs client-side filtering by name using
+        PowerShell's -like semantics (wildcards supported). -Id takes
+        precedence; if both are specified, -Id wins and the filter is ignored
+        with a warning.
+
         Reference (Apache Guacamole 1.6.0):
         - guacamole/src/main/java/org/apache/guacamole/rest/session/UserContextResource.java
           (@Path("connectionGroups"))
@@ -40,6 +45,9 @@ function Get-GuacConnectionGroup {
 
     .EXAMPLE
         Get-GuacConnectionGroup -Id 'group-id'
+
+    .EXAMPLE
+        Get-GuacConnectionGroup -Name "prod-*"
 
     .EXAMPLE
         Get-GuacConnectionGroup -Permission READ, UPDATE
@@ -70,6 +78,10 @@ function Get-GuacConnectionGroup {
         [string] $Id = [string]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $Name = [string]::Empty,
+
+        [Parameter(Mandatory = $false)]
         [ValidateSet('READ', 'UPDATE', 'DELETE', 'ADMINISTER')]
         [string[]] $Permission,
 
@@ -80,6 +92,9 @@ function Get-GuacConnectionGroup {
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroup'
 
     if (-not [string]::IsNullOrWhiteSpace($Id)) {
+        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+            Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
+        }
         $group = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $Id
         if ($ResolveParentGroupName -and $group.ParentIdentifier) {
             if ($group.ParentIdentifier -eq 'ROOT') {
@@ -100,6 +115,11 @@ function Get-GuacConnectionGroup {
     }
 
     $groups = @(Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'List' -Permission $Permission)
+
+    # Client-side filtering
+    if (-not [string]::IsNullOrWhiteSpace($Name)) {
+        $groups = @($groups | Where-Object { $_.Name -like $Name })
+    }
     if ($ResolveParentGroupName -and $groups.Count -gt 0) {
         $parentIds = @($groups | ForEach-Object { if ($_.ParentIdentifier -and $_.ParentIdentifier -ne 'ROOT') { $_.ParentIdentifier } }) | Select-Object -Unique
         $parentMap = @{}

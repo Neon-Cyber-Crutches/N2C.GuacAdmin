@@ -56,6 +56,20 @@ Describe 'Get-GuacConnectionGroup' {
     }
 }
 
+Describe 'Get-GuacConnectionGroup filters' {
+    It 'filters by exact name' {
+        $results = @(Get-GuacConnectionGroup -Session $session -Name 'prod')
+        $results.Count | Should -Be 1
+        $results[0].Name | Should -Be 'prod'
+    }
+
+    It 'filters by name wildcard' {
+        $results = @(Get-GuacConnectionGroup -Session $session -Name 'sta*')
+        $results.Count | Should -Be 1
+        $results[0].Name | Should -Be 'staging'
+    }
+}
+
 Describe 'Get-GuacConnectionGroupTree' {
     It 'returns a group tree with child groups' {
         $tree = Get-GuacConnectionGroupTree -Session $session -Id 'group-1'

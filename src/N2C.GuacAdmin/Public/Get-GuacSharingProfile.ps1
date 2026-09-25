@@ -20,6 +20,11 @@ function Get-GuacSharingProfile {
         adding a PrimaryConnectionName property. Use -ResolveConnectionName:$false
         to skip resolution for raw API data.
 
+        The -Name parameter performs client-side filtering by profile name
+        using PowerShell's -like semantics (wildcards supported). -Id takes
+        precedence; if both are specified, -Id wins and the filter is ignored
+        with a warning.
+
         Reference (Apache Guacamole 1.6.0):
         - guacamole/src/main/java/org/apache/guacamole/rest/session/UserContextResource.java
           (@Path("sharingProfiles"))
@@ -34,6 +39,9 @@ function Get-GuacSharingProfile {
 
     .EXAMPLE
         Get-GuacSharingProfile -Id 'readonly'
+
+    .EXAMPLE
+        Get-GuacSharingProfile -Name "readonly*"
 
     .EXAMPLE
         Get-GuacSharingProfile | Select-Object Name, PrimaryConnectionName
@@ -61,12 +69,19 @@ function Get-GuacSharingProfile {
         [string] $Id = [string]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $Name = [string]::Empty,
+
+        [Parameter(Mandatory = $false)]
         [bool] $ResolveConnectionName = $true
     )
 
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacSharingProfile'
 
     if (-not [string]::IsNullOrWhiteSpace($Id)) {
+        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+            Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
+        }
         $sh_profile = Invoke-GuacDirectory -Context $ctx -Collection 'sharingProfiles' -Action 'Get' -Id $Id
         if ($ResolveConnectionName -and -not [string]::IsNullOrWhiteSpace($sh_profile.PrimaryConnectionIdentifier)) {
             try {
@@ -82,6 +97,11 @@ function Get-GuacSharingProfile {
     }
 
     $profiles = @(Invoke-GuacDirectory -Context $ctx -Collection 'sharingProfiles' -Action 'List')
+
+    # Client-side filtering
+    if (-not [string]::IsNullOrWhiteSpace($Name)) {
+        $profiles = @($profiles | Where-Object { $_.Name -like $Name })
+    }
     if ($ResolveConnectionName -and $profiles.Count -gt 0) {
         $connIds = @($profiles | ForEach-Object { if ($_.PrimaryConnectionIdentifier) { $_.PrimaryConnectionIdentifier } }) | Select-Object -Unique
         $connMap = @{}

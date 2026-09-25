@@ -19,6 +19,11 @@ function Get-GuacUserGroup {
         permission cmdlets), which operate on the userGroups/{id}/memberUsers,
         memberUserGroups, and permissions endpoints.
 
+        The -Name parameter performs client-side filtering by group name
+        using PowerShell's -like semantics (wildcards supported). -Id takes
+        precedence; if both are specified, -Id wins and the filter is ignored
+        with a warning.
+
         Reference (Apache Guacamole 1.6.0):
         - guacamole/src/main/java/org/apache/guacamole/rest/session/UserContextResource.java
           (@Path("userGroups"))
@@ -34,6 +39,9 @@ function Get-GuacUserGroup {
 
     .EXAMPLE
         Get-GuacUserGroup -Id 'admin-group'
+
+    .EXAMPLE
+        Get-GuacUserGroup -Name "admin*"
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
@@ -52,13 +60,28 @@ function Get-GuacUserGroup {
 
         [Parameter(Mandatory = $false, Position = 0)]
         [AllowEmptyString()]
-        [string] $Id = [string]::Empty
+        [string] $Id = [string]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [AllowEmptyString()]
+        [string] $Name = [string]::Empty
     )
 
     $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUserGroup'
 
     if (-not [string]::IsNullOrWhiteSpace($Id)) {
+        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+            Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
+        }
         return (Invoke-GuacDirectory -Context $ctx -Collection 'userGroups' -Action 'Get' -Id $Id)
     }
-    return (Invoke-GuacDirectory -Context $ctx -Collection 'userGroups' -Action 'List')
+
+    $groups = @(Invoke-GuacDirectory -Context $ctx -Collection 'userGroups' -Action 'List')
+
+    # Client-side filtering (user groups use 'identifier' as their name)
+    if (-not [string]::IsNullOrWhiteSpace($Name)) {
+        $groups = @($groups | Where-Object { $_.Identifier -like $Name })
+    }
+
+    return $groups
 }

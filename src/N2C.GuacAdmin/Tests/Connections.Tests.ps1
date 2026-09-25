@@ -77,6 +77,38 @@ Describe 'Get-GuacConnection' {
     }
 }
 
+Describe 'Get-GuacConnection filters' {
+    It 'filters by exact name' {
+        $results = @(Get-GuacConnection -Session $session -Name 'test-connection')
+        $results.Count | Should -Be 1
+        $results[0].Name | Should -Be 'test-connection'
+    }
+
+    It 'filters by name wildcard' {
+        $results = @(Get-GuacConnection -Session $session -Name 'ssh-*')
+        $results.Count | Should -Be 1
+        $results[0].Name | Should -Be 'ssh-server'
+    }
+
+    It 'filters by protocol' {
+        $results = @(Get-GuacConnection -Session $session -Protocol 'ssh')
+        $results.Count | Should -Be 1
+        $results[0].Protocol | Should -Be 'ssh'
+    }
+
+    It 'combines name and protocol filters' {
+        $results = @(Get-GuacConnection -Session $session -Name 'ssh-*' -Protocol 'ssh')
+        $results.Count | Should -Be 1
+        $results[0].Name | Should -Be 'ssh-server'
+        $results[0].Protocol | Should -Be 'ssh'
+    }
+
+    It 'returns empty when no name matches' {
+        $results = @(Get-GuacConnection -Session $session -Name 'nonexistent-*')
+        $results.Count | Should -Be 0
+    }
+}
+
 Describe 'New-GuacConnection' {
     It 'creates a connection and returns it with a server-assigned identifier' {
         $created = New-GuacConnection -Session $session -InputObject @{

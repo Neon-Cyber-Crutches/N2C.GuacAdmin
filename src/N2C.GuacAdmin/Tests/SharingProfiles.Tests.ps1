@@ -38,6 +38,10 @@ Describe 'Get-GuacSharingProfile' {
         $sh_profile.Parameters['guac-readonly'] | Should -Be 'true'
     }
 
+    It 'throws a terminating error for an unknown id' {
+        { Get-GuacSharingProfile -Session $session -Id 'does-not-exist' -ErrorAction Stop } | Should -Throw
+    }
+
     It 'resolves PrimaryConnectionName by default' {
         $sh_profile = Get-GuacSharingProfile -Session $session -Id 'readonly'
         $sh_profile.PrimaryConnectionName | Should -Be 'test-connection'
@@ -46,6 +50,25 @@ Describe 'Get-GuacSharingProfile' {
     It 'skips PrimaryConnectionName resolution when -ResolveConnectionName is false' {
         $sh_profile = Get-GuacSharingProfile -Session $session -Id 'readonly' -ResolveConnectionName:$false
         $sh_profile.PSObject.Properties['PrimaryConnectionName'] | Should -Be $null
+    }
+}
+
+Describe 'Get-GuacSharingProfile filters' {
+    It 'filters by exact name' {
+        $results = @(Get-GuacSharingProfile -Session $session -Name 'read-only')
+        $results.Count | Should -Be 1
+        $results[0].Name | Should -Be 'read-only'
+    }
+
+    It 'filters by name wildcard' {
+        $results = @(Get-GuacSharingProfile -Session $session -Name 'read-*')
+        $results.Count | Should -Be 1
+        $results[0].Name | Should -Be 'read-only'
+    }
+
+    It 'returns empty when no name matches' {
+        $results = @(Get-GuacSharingProfile -Session $session -Name 'nonexistent-*')
+        $results.Count | Should -Be 0
     }
 }
 

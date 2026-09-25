@@ -12,18 +12,20 @@ function Update-GuacConnectionGroup {
           operations: add (create), replace (full or partial group update,
           path "/{id}"), and remove (path "/{id}").
 
-        - -Replace: a full replacement of the group via
+        - -Replace: a merge-replace of the group via
           DirectoryObjectResource.updateObject (PUT connectionGroups/{id}).
-          The body should contain the complete APIConnectionGroup (name,
-          type, parentIdentifier, attributes).
+          The body may contain any subset of the APIConnectionGroup fields
+          (name, type, parentIdentifier, attributes). The cmdlet reads the
+          current object first, merges the provided fields on top, and sends
+          the complete object. This ensures that fields not supplied (such as
+          attributes) are preserved rather than set to null, which would
+          cause a server-side database error (HTTP 500).
 
-        WARNING: both modes are full replacements, not merges. The server
-        translator (ConnectionGroupObjectTranslator.applyExternalChanges)
-        applies every field of the supplied object unconditionally, so any
-        field that is missing from the body (or missing from the "value" of a
-        "replace" patch operation) is set to null on the server. To change a
-        single field, read the full object first (Get-GuacConnectionGroup
-        -Id), modify the property, and submit the complete object.
+        The -Patch mode still applies the supplied operations as-is; if a
+        "replace" operation is used, its value should contain the complete
+        object (the server translator applies every field of the supplied
+        object unconditionally, so any field missing from the value is set to
+        null).
 
         The target group is addressed by -Id, or by piping a group object
         (as returned by Get-GuacConnectionGroup) into the cmdlet (bound to
@@ -41,19 +43,21 @@ function Update-GuacConnectionGroup {
         - guacamole/src/main/java/org/apache/guacamole/rest/connectiongroup/APIConnectionGroup.java
 
     .EXAMPLE
-        # Read-modify-write: submit the complete object, not just the changed field.
+        # Merge-replace with partial data: only the changed fields need to be
+        # supplied; the cmdlet reads the current object and merges automatically.
+        Update-GuacConnectionGroup -Id '13' -Replace @{
+            name = 'web-servers'
+            type = 'BALANCING'
+        }
+
+    .EXAMPLE
+        # Full replacement using the -Patch mode requires a complete object in
+        # the "value" of the replace operation.
         $group = Get-GuacConnectionGroup -Id $id
         $group.Name = 'renamed-group'
         Update-GuacConnectionGroup -Id $group.Identifier -Patch (
             @{ op = 'replace'; path = ('/{0}' -f $group.Identifier); value = $group }
         )
-
-    .EXAMPLE
-        Update-GuacConnectionGroup -Id $group.Identifier -Replace @{
-            name = 'production'
-            type = 'BALANCING'
-            parentIdentifier = 'ROOT'
-        }
     #>
     [CmdletBinding(SupportsShouldProcess = $true)]
     [OutputType([PSCustomObject])]
@@ -137,10 +141,22 @@ function Update-GuacConnectionGroup {
         }
 
         # Full replacement via PUT.
-        $body = ConvertTo-GuacEntityBody -Object $Replace -ExcludeProperty @('identifier', 'Identifier', 'activeConnections', 'childConnectionGroups', 'childConnections')
+        # Read the current object first to ensure all fields are present in
+        # the PUT body. The server's ConnectionGroupObjectTranslator.
+        # applyExternalChanges sets every field from the supplied object
+        # unconditionally, so any field missing from the body (especially
+        # attributes) becomes null and can cause a database error (HTTP 500).
+        # By reading the current state and merging the user's changes on top,
+        # we guarantee a complete object is sent.
+        $currentGroup = Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Get' -Id $targetId
+        $mergedBody = ConvertTo-GuacEntityBody -Object $currentGroup -ExcludeProperty @('identifier', 'Identifier', 'activeConnections', 'childConnectionGroups', 'childConnections')
+        $replaceBody = ConvertTo-GuacEntityBody -Object $Replace -ExcludeProperty @('identifier', 'Identifier', 'activeConnections', 'childConnectionGroups', 'childConnections')
+        foreach ($key in $replaceBody.Keys) {
+            $mergedBody[$key] = $replaceBody[$key]
+        }
         if (-not ($PSCmdlet.ShouldProcess(('connection group {0}' -f $targetId), 'Replace Guacamole connection group (PUT connectionGroups/{id})'))) {
             return
         }
-        return (Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Update' -Id $targetId -Body $body)
+        return (Invoke-GuacDirectory -Context $ctx -Collection 'connectionGroups' -Action 'Update' -Id $targetId -Body $mergedBody)
     }
 }

@@ -39,6 +39,20 @@ Describe 'Get-GuacUserGroup' {
     }
 }
 
+Describe 'Get-GuacUserGroup filters' {
+    It 'filters by exact identifier' {
+        $results = @(Get-GuacUserGroup -Session $session -Name 'admins')
+        $results.Count | Should -Be 1
+        $results[0].Identifier | Should -Be 'admins'
+    }
+
+    It 'filters by identifier wildcard' {
+        $results = @(Get-GuacUserGroup -Session $session -Name 'ad*')
+        $results.Count | Should -Be 1
+        $results[0].Identifier | Should -Be 'admins'
+    }
+}
+
 Describe 'New-GuacUserGroup' {
     It 'creates a user group' {
         $created = New-GuacUserGroup -Session $session -Identifier 'newgroup' -Disabled $false

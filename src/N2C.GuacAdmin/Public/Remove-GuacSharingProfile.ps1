@@ -59,14 +59,21 @@ function Remove-GuacSharingProfile {
     }
 
     process {
-        if ($null -ne $InputObject) {
-            $pendingId = Get-GuacIdentifier -Object $InputObject
+            if ($null -ne $InputObject) {
+                $pendingId = Get-GuacIdentifier -Object $InputObject
+                # DataSource resolution priority: explicit param > piped object > session default
+                if ([string]::IsNullOrWhiteSpace($DataSource)) {
+                    $pipedDs = Get-GuacDataSourceFromObject -Object $InputObject
+                    if (-not [string]::IsNullOrWhiteSpace($pipedDs)) {
+                        $DataSource = $pipedDs
+                    }
+                }
+            }
         }
-    }
-
-    end {
-        $targetId = $Id
-        if ([string]::IsNullOrWhiteSpace($targetId)) { $targetId = $pendingId }
+    
+        end {
+            $targetId = $Id
+            if ([string]::IsNullOrWhiteSpace($targetId)) { $targetId = $pendingId }
         if ([string]::IsNullOrWhiteSpace($targetId)) {
             throw ($script:GuacRestExceptionType::new(
                 'Remove-GuacSharingProfile requires the sharing profile identifier: supply -Id or pipe a profile object.'

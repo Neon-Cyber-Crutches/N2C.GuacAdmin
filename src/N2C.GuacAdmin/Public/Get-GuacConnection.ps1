@@ -92,9 +92,65 @@ function Get-GuacConnection {
         [bool] $ResolveParentGroupName = $true
     )
 
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnection'
-
-    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+    # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnection'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+                        $conn = Invoke-GuacDirectory -Context $singleCtx -Collection 'connections' -Action 'Get' -Id $Id
+                        if ($conn) { Write-Output $conn }
+                    }
+                    else {
+                        $connections = @(Invoke-GuacDirectory -Context $singleCtx -Collection 'connections' -Action 'List')
+                        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+                            $connections = @($connections | Where-Object { $_.Name -like $Name })
+                        }
+                        if (-not [string]::IsNullOrWhiteSpace($Protocol)) {
+                            $connections = @($connections | Where-Object { $_.Protocol -eq $Protocol })
+                        }
+                        if ($ResolveParentGroupName -and $connections.Count -gt 0) {
+                            $groupIds = @($connections | ForEach-Object { if ($_.ParentIdentifier -and $_.ParentIdentifier -ne 'ROOT') { $_.ParentIdentifier } }) | Select-Object -Unique
+                            $groupMap = @{}
+                            foreach ($groupId in $groupIds) {
+                                try {
+                                    $group = Invoke-GuacDirectory -Context $singleCtx -Collection 'connectionGroups' -Action 'Get' -Id $groupId
+                                    $groupMap[$groupId] = $group.Name
+                                }
+                                catch {
+                                    $groupMap[$groupId] = '(unknown)'
+                                }
+                            }
+                            foreach ($conn in $connections) {
+                                if ($conn.ParentIdentifier) {
+                                    if ($conn.ParentIdentifier -eq 'ROOT') {
+                                        $conn | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
+                                    }
+                                    else {
+                                        $conn | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $groupMap[$conn.ParentIdentifier]
+                                    }
+                                }
+                            }
+                        }
+                        foreach ($conn in $connections) { Write-Output $conn }
+                    }
+                }
+                catch {
+                    Write-Warning ('Get-GuacConnection: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnection'
+    
+        if (-not [string]::IsNullOrWhiteSpace($Id)) {
         if (-not [string]::IsNullOrWhiteSpace($Name) -or -not [string]::IsNullOrWhiteSpace($Protocol)) {
             Write-Warning 'Both -Id and filter parameters (-Name/-Protocol) were specified. -Id takes precedence; filters are ignored.'
         }

@@ -74,6 +74,13 @@ function Remove-GuacUserGroupMember {
             else {
                 $pendingGroup = Get-GuacIdentifier -Object $InputObject
             }
+            # DataSource resolution priority: explicit param > piped object > session default
+            if ([string]::IsNullOrWhiteSpace($DataSource)) {
+                $pipedDs = Get-GuacDataSourceFromObject -Object $InputObject
+                if (-not [string]::IsNullOrWhiteSpace($pipedDs)) {
+                    $DataSource = $pipedDs
+                }
+            }
         }
     }
 

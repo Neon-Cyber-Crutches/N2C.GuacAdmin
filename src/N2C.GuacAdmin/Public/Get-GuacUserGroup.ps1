@@ -67,9 +67,38 @@ function Get-GuacUserGroup {
         [string] $Name = [string]::Empty
     )
 
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUserGroup'
-
-    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+    # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUserGroup'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+                        Write-Output (Invoke-GuacDirectory -Context $singleCtx -Collection 'userGroups' -Action 'Get' -Id $Id)
+                    }
+                    else {
+                        $groups = @(Invoke-GuacDirectory -Context $singleCtx -Collection 'userGroups' -Action 'List')
+                        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+                            $groups = @($groups | Where-Object { $_.Identifier -like $Name })
+                        }
+                        foreach ($group in $groups) { Write-Output $group }
+                    }
+                }
+                catch {
+                    Write-Warning ('Get-GuacUserGroup: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUserGroup'
+    
+        if (-not [string]::IsNullOrWhiteSpace($Id)) {
         if (-not [string]::IsNullOrWhiteSpace($Name)) {
             Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
         }

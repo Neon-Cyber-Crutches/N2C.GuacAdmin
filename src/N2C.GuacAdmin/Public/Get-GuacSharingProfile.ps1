@@ -76,9 +76,66 @@ function Get-GuacSharingProfile {
         [bool] $ResolveConnectionName = $true
     )
 
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacSharingProfile'
-
-    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+    # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacSharingProfile'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+                        $sh_profile = Invoke-GuacDirectory -Context $singleCtx -Collection 'sharingProfiles' -Action 'Get' -Id $Id
+                        if ($ResolveConnectionName -and -not [string]::IsNullOrWhiteSpace($sh_profile.PrimaryConnectionIdentifier)) {
+                            try {
+                                $conn = Invoke-GuacDirectory -Context $singleCtx -Collection 'connections' -Action 'Get' -Id $sh_profile.PrimaryConnectionIdentifier
+                                $sh_profile | Add-Member -NotePropertyName PrimaryConnectionName -NotePropertyValue $conn.Name
+                            }
+                            catch {
+                                $sh_profile | Add-Member -NotePropertyName PrimaryConnectionName -NotePropertyValue '(unknown)'
+                            }
+                        }
+                        Write-Output $sh_profile
+                    }
+                    else {
+                        $profiles = @(Invoke-GuacDirectory -Context $singleCtx -Collection 'sharingProfiles' -Action 'List')
+                        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+                            $profiles = @($profiles | Where-Object { $_.Name -like $Name })
+                        }
+                        if ($ResolveConnectionName -and $profiles.Count -gt 0) {
+                            $connIds = @($profiles | ForEach-Object { if ($_.PrimaryConnectionIdentifier) { $_.PrimaryConnectionIdentifier } }) | Select-Object -Unique
+                            $connMap = @{}
+                            foreach ($connId in $connIds) {
+                                try {
+                                    $conn = Invoke-GuacDirectory -Context $singleCtx -Collection 'connections' -Action 'Get' -Id $connId
+                                    $connMap[$connId] = $conn.Name
+                                }
+                                catch {
+                                    $connMap[$connId] = '(unknown)'
+                                }
+                            }
+                            foreach ($sh_profile in $profiles) {
+                                if ($sh_profile.PrimaryConnectionIdentifier) {
+                                    $sh_profile | Add-Member -NotePropertyName PrimaryConnectionName -NotePropertyValue $connMap[$sh_profile.PrimaryConnectionIdentifier]
+                                }
+                            }
+                        }
+                        foreach ($sh_profile in $profiles) { Write-Output $sh_profile }
+                    }
+                }
+                catch {
+                    Write-Warning ('Get-GuacSharingProfile: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacSharingProfile'
+    
+        if (-not [string]::IsNullOrWhiteSpace($Id)) {
         if (-not [string]::IsNullOrWhiteSpace($Name)) {
             Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
         }

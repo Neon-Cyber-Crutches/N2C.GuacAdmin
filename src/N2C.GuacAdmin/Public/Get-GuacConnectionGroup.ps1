@@ -89,9 +89,76 @@ function Get-GuacConnectionGroup {
         [bool] $ResolveParentGroupName = $true
     )
 
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroup'
-
-    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+    # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroup'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+                        $group = Invoke-GuacDirectory -Context $singleCtx -Collection 'connectionGroups' -Action 'Get' -Id $Id
+                        if ($ResolveParentGroupName -and $group.ParentIdentifier) {
+                            if ($group.ParentIdentifier -eq 'ROOT') {
+                                $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
+                            }
+                            else {
+                                try {
+                                    $parent = Invoke-GuacDirectory -Context $singleCtx -Collection 'connectionGroups' -Action 'Get' -Id $group.ParentIdentifier
+                                    $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parent.Name
+                                }
+                                catch {
+                                    $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue '(unknown)'
+                                }
+                            }
+                        }
+                        Write-Output $group
+                    }
+                    else {
+                        $groups = @(Invoke-GuacDirectory -Context $singleCtx -Collection 'connectionGroups' -Action 'List' -Permission $Permission)
+                        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+                            $groups = @($groups | Where-Object { $_.Name -like $Name })
+                        }
+                        if ($ResolveParentGroupName -and $groups.Count -gt 0) {
+                            $parentIds = @($groups | ForEach-Object { if ($_.ParentIdentifier -and $_.ParentIdentifier -ne 'ROOT') { $_.ParentIdentifier } }) | Select-Object -Unique
+                            $parentMap = @{}
+                            foreach ($parentId in $parentIds) {
+                                try {
+                                    $parent = Invoke-GuacDirectory -Context $singleCtx -Collection 'connectionGroups' -Action 'Get' -Id $parentId
+                                    $parentMap[$parentId] = $parent.Name
+                                }
+                                catch {
+                                    $parentMap[$parentId] = '(unknown)'
+                                }
+                            }
+                            foreach ($group in $groups) {
+                                if ($group.ParentIdentifier) {
+                                    if ($group.ParentIdentifier -eq 'ROOT') {
+                                        $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
+                                    }
+                                    else {
+                                        $group | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parentMap[$group.ParentIdentifier]
+                                    }
+                                }
+                            }
+                        }
+                        foreach ($group in $groups) { Write-Output $group }
+                    }
+                }
+                catch {
+                    Write-Warning ('Get-GuacConnectionGroup: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroup'
+    
+        if (-not [string]::IsNullOrWhiteSpace($Id)) {
         if (-not [string]::IsNullOrWhiteSpace($Name)) {
             Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
         }

@@ -67,6 +67,13 @@ function Remove-GuacUserGroupChildGroup {
             if (-not [string]::IsNullOrWhiteSpace($identifier)) {
                 $pendingGroup = $identifier
             }
+            # DataSource resolution priority: explicit param > piped object > session default
+            if ([string]::IsNullOrWhiteSpace($DataSource)) {
+                $pipedDs = Get-GuacDataSourceFromObject -Object $InputObject
+                if (-not [string]::IsNullOrWhiteSpace($pipedDs)) {
+                    $DataSource = $pipedDs
+                }
+            }
         }
     }
 

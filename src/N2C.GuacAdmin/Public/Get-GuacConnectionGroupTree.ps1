@@ -65,15 +65,56 @@ function Get-GuacConnectionGroupTree {
         [bool] $ResolveParentGroupName = $true
     )
 
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroupTree'
-
-    $query = [string]::Empty
+    # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroupTree'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    $query = [string]::Empty
+                    if ($null -ne $Permission -and $Permission.Count -gt 0) {
+                        $query = ('permission={0}' -f ($Permission -join '&permission='))
+                    }
+                    $path = Resolve-GuacContextUrl -DataSource $singleCtx['DataSource'] -Collection 'connectionGroups' -Id $Id -SubPath 'tree' -Query $query
+                    $response = Invoke-GuacRest -Server $singleCtx['Server'] -Token $singleCtx['Token'] -Method GET -Path $path
+                    $tree = Get-GuacEntityResponse -Response $response -Identifier $Id -DataSource $ds
+                    if ($ResolveParentGroupName -and $tree.ParentIdentifier) {
+                        if ($tree.ParentIdentifier -eq 'ROOT') {
+                            $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
+                        }
+                        else {
+                            try {
+                                $parent = Invoke-GuacDirectory -Context $singleCtx -Collection 'connectionGroups' -Action 'Get' -Id $tree.ParentIdentifier
+                                $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $parent.Name
+                            }
+                            catch {
+                                $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue '(unknown)'
+                            }
+                        }
+                    }
+                    Write-Output $tree
+                }
+                catch {
+                    Write-Warning ('Get-GuacConnectionGroupTree: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacConnectionGroupTree'
+    
+        $query = [string]::Empty
     if ($null -ne $Permission -and $Permission.Count -gt 0) {
         $query = ('permission={0}' -f ($Permission -join '&permission='))
     }
     $path = Resolve-GuacContextUrl -DataSource $ctx['DataSource'] -Collection 'connectionGroups' -Id $Id -SubPath 'tree' -Query $query
     $response = Invoke-GuacRest -Server $ctx['Server'] -Token $ctx['Token'] -Method GET -Path $path
-    $tree = Get-GuacEntityResponse -Response $response -Identifier $Id
+    $tree = Get-GuacEntityResponse -Response $response -Identifier $Id -DataSource $ctx['DataSource']
     if ($ResolveParentGroupName -and $tree.ParentIdentifier) {
         if ($tree.ParentIdentifier -eq 'ROOT') {
             $tree | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'

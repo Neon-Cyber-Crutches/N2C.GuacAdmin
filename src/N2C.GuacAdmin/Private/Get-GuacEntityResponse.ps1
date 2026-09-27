@@ -135,16 +135,20 @@ function Get-GuacEntityResponse {
         This function is private to the N2C.GuacAdmin module.
     #>
     [CmdletBinding()]
-    [OutputType([PSCustomObject])]
-    param (
-        [Parameter(Position = 0)]
-        [AllowNull()]
-        [object] $Response,
-
-        [Parameter(Position = 1)]
-        [AllowEmptyString()]
-        [string] $Identifier = [string]::Empty
-    )
+        [OutputType([PSCustomObject])]
+        param (
+            [Parameter(Position = 0)]
+            [AllowNull()]
+            [object] $Response,
+    
+            [Parameter(Position = 1)]
+            [AllowEmptyString()]
+            [string] $Identifier = [string]::Empty,
+    
+            [Parameter(Position = 2)]
+            [AllowEmptyString()]
+            [string] $DataSource = [string]::Empty
+        )
 
     if ($null -eq $Response) {
         return $null
@@ -167,9 +171,12 @@ function Get-GuacEntityResponse {
         }
     }
     if (-not [string]::IsNullOrWhiteSpace($Identifier)) {
-        $props['Identifier'] = $Identifier
-    }
-    return [PSCustomObject]$props
+            $props['Identifier'] = $Identifier
+        }
+        if (-not [string]::IsNullOrWhiteSpace($DataSource)) {
+            $props['DataSource'] = $DataSource
+        }
+        return [PSCustomObject]$props
 }
 
 function ConvertTo-GuacEntityBody {

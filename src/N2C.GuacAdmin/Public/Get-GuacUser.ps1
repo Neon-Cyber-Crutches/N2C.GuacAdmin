@@ -89,9 +89,46 @@ function Get-GuacUser {
         [switch] $EffectivePermissions
     )
 
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUser'
-
-    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+    # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUser'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+                        $user = Invoke-GuacDirectory -Context $singleCtx -Collection 'users' -Action 'Get' -Id $Id
+                        Write-Output (Get-GuacUserPermissions -User $user -Context $singleCtx -Direct:$Permissions -Effective:$EffectivePermissions)
+                    }
+                    else {
+                        $users = @(Invoke-GuacDirectory -Context $singleCtx -Collection 'users' -Action 'List')
+                        if (-not [string]::IsNullOrWhiteSpace($Name)) {
+                            $users = @($users | Where-Object { $_.Username -like $Name })
+                        }
+                        if ($Permissions -or $EffectivePermissions) {
+                            foreach ($user in $users) {
+                                Write-Output (Get-GuacUserPermissions -User $user -Context $singleCtx -Direct:$Permissions -Effective:$EffectivePermissions)
+                            }
+                        }
+                        else {
+                            foreach ($user in $users) { Write-Output $user }
+                        }
+                    }
+                }
+                catch {
+                    Write-Warning ('Get-GuacUser: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacUser'
+    
+        if (-not [string]::IsNullOrWhiteSpace($Id)) {
         if (-not [string]::IsNullOrWhiteSpace($Name)) {
             Write-Warning 'Both -Id and -Name were specified. -Id takes precedence; -Name is ignored.'
         }

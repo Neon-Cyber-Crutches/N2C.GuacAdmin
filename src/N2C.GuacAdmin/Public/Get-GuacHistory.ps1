@@ -72,17 +72,67 @@ function Get-GuacHistory {
     )
 
     # -Type is not Mandatory on purpose: a Mandatory parameter would make
-    # PowerShell prompt interactively in a terminal instead of failing with a
-    # clear, catchable terminating error.
-    if ([string]::IsNullOrWhiteSpace($Type)) {
-        throw ($script:GuacRestExceptionType::new(
-            'Get-GuacHistory requires -Type: supply -Type Connection or -Type User.'
-        ))
-    }
-
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacHistory'
-
-    $subPath = if ($Type -eq 'Connection') { 'connections' } else { 'users' }
+        # PowerShell prompt interactively in a terminal instead of failing with a
+        # clear, catchable terminating error.
+        if ([string]::IsNullOrWhiteSpace($Type)) {
+            throw ($script:GuacRestExceptionType::new(
+                'Get-GuacHistory requires -Type: supply -Type Connection or -Type User.'
+            ))
+        }
+    
+        # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacHistory'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    $subPath = if ($Type -eq 'Connection') { 'connections' } else { 'users' }
+    
+                    $queryParts = [System.Collections.Generic.List[string]]::new()
+                    if ($null -ne $Contains) {
+                        foreach ($c in $Contains) {
+                            if (-not [string]::IsNullOrWhiteSpace($c)) {
+                                $queryParts.Add(('contains={0}' -f [Uri]::EscapeDataString($c)))
+                            }
+                        }
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace($Order)) {
+                        $queryParts.Add(('order={0}' -f [Uri]::EscapeDataString($Order)))
+                    }
+    
+                    $query = [string]::Empty
+                    if ($queryParts.Count -gt 0) { $query = ($queryParts -join '&') }
+    
+                    $path = Resolve-GuacContextUrl -DataSource $singleCtx['DataSource'] -Collection 'history' -SubPath $subPath -Query $query
+                    $response = Invoke-GuacRest -Server $singleCtx['Server'] -Token $singleCtx['Token'] -Method GET -Path $path
+                    if ($response) {
+                        if ($response -is [array]) {
+                            foreach ($item in $response) {
+                                $item | Add-Member -NotePropertyName DataSource -NotePropertyValue $ds -Force
+                                Write-Output $item
+                            }
+                        }
+                        else {
+                            $response | Add-Member -NotePropertyName DataSource -NotePropertyValue $ds -Force
+                            Write-Output $response
+                        }
+                    }
+                }
+                catch {
+                    Write-Warning ('Get-GuacHistory: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacHistory'
+    
+        $subPath = if ($Type -eq 'Connection') { 'connections' } else { 'users' }
 
     $queryParts = [System.Collections.Generic.List[string]]::new()
     if ($null -ne $Contains) {

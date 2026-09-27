@@ -105,19 +105,26 @@ function Remove-GuacPermission {
     }
 
     process {
-        if ($null -ne $InputObject) {
-            $username = [string]::Empty
-            if ($InputObject.PSObject.Properties.Match('username').Count -gt 0) {
-                $username = [string]$InputObject.username
-            }
-            if (-not [string]::IsNullOrWhiteSpace($username)) {
-                $pendingSubject = [ordered]@{ Type = 'user'; Id = $username }
-            }
-            else {
-                $pendingSubject = [ordered]@{ Type = 'userGroup'; Id = (Get-GuacIdentifier -Object $InputObject) }
+            if ($null -ne $InputObject) {
+                $username = [string]::Empty
+                if ($InputObject.PSObject.Properties.Match('username').Count -gt 0) {
+                    $username = [string]$InputObject.username
+                }
+                if (-not [string]::IsNullOrWhiteSpace($username)) {
+                    $pendingSubject = [ordered]@{ Type = 'user'; Id = $username }
+                }
+                else {
+                    $pendingSubject = [ordered]@{ Type = 'userGroup'; Id = (Get-GuacIdentifier -Object $InputObject) }
+                }
+                # DataSource resolution priority: explicit param > piped object > session default
+                if ([string]::IsNullOrWhiteSpace($DataSource)) {
+                    $pipedDs = Get-GuacDataSourceFromObject -Object $InputObject
+                    if (-not [string]::IsNullOrWhiteSpace($pipedDs)) {
+                        $DataSource = $pipedDs
+                    }
+                }
             }
         }
-    }
 
     end {
         $subjectType = [string]::Empty

@@ -62,9 +62,63 @@ function Get-GuacActiveConnection {
         [bool] $ResolveConnectionName = $true
     )
 
-    $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacActiveConnection'
-
-    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+    # Handle -DataSource All by iterating over all available data sources
+        if ($DataSource -ieq 'All') {
+            $allCtx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacActiveConnection'
+            foreach ($ds in $allCtx.DataSources) {
+                $singleCtx = [ordered]@{
+                    Session    = $allCtx.Session
+                    Server     = $allCtx.Server
+                    Token      = $allCtx.Token
+                    DataSource = $ds
+                }
+                try {
+                    if (-not [string]::IsNullOrWhiteSpace($Id)) {
+                        $active = Invoke-GuacDirectory -Context $singleCtx -Collection 'activeConnections' -Action 'Get' -Id $Id
+                        if ($ResolveConnectionName -and -not [string]::IsNullOrWhiteSpace($active.ConnectionIdentifier)) {
+                            try {
+                                $conn = Invoke-GuacDirectory -Context $singleCtx -Collection 'connections' -Action 'Get' -Id $active.ConnectionIdentifier
+                                $active | Add-Member -NotePropertyName ConnectionName -NotePropertyValue $conn.Name
+                            }
+                            catch {
+                                $active | Add-Member -NotePropertyName ConnectionName -NotePropertyValue '(unknown)'
+                            }
+                        }
+                        Write-Output $active
+                    }
+                    else {
+                        $activeList = @(Invoke-GuacDirectory -Context $singleCtx -Collection 'activeConnections' -Action 'List')
+                        if ($ResolveConnectionName -and $activeList.Count -gt 0) {
+                            $connIds = @($activeList | ForEach-Object { if ($_.ConnectionIdentifier) { $_.ConnectionIdentifier } }) | Select-Object -Unique
+                            $connMap = @{}
+                            foreach ($connId in $connIds) {
+                                try {
+                                    $conn = Invoke-GuacDirectory -Context $singleCtx -Collection 'connections' -Action 'Get' -Id $connId
+                                    $connMap[$connId] = $conn.Name
+                                }
+                                catch {
+                                    $connMap[$connId] = '(unknown)'
+                                }
+                            }
+                            foreach ($active in $activeList) {
+                                if ($active.ConnectionIdentifier) {
+                                    $active | Add-Member -NotePropertyName ConnectionName -NotePropertyValue $connMap[$active.ConnectionIdentifier]
+                                }
+                            }
+                        }
+                        foreach ($active in $activeList) { Write-Output $active }
+                    }
+                }
+                catch {
+                    Write-Warning ('Get-GuacActiveConnection: error querying data source "{0}": {1}' -f ($ds, $_.Exception.Message))
+                }
+            }
+            return
+        }
+    
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Get-GuacActiveConnection'
+    
+        if (-not [string]::IsNullOrWhiteSpace($Id)) {
         $active = Invoke-GuacDirectory -Context $ctx -Collection 'activeConnections' -Action 'Get' -Id $Id
         if ($ResolveConnectionName -and -not [string]::IsNullOrWhiteSpace($active.ConnectionIdentifier)) {
             try {

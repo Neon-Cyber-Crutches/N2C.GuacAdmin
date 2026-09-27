@@ -98,10 +98,27 @@ function Resolve-GuacSessionContext {
     }
 
     if ([string]::IsNullOrWhiteSpace($DataSource)) {
-        $DataSource = [string]$Session.DataSource
-    }
-    $available = @($Session.AvailableDataSources)
-    if ($available -and $available.Count -gt 0 -and $available -notcontains $DataSource) {
+            $DataSource = [string]$Session.DataSource
+        }
+        # Special case: -DataSource All means "iterate over all data sources"
+        if ($DataSource -ieq 'All') {
+            $available = @($Session.AvailableDataSources)
+            if (-not $available -or $available.Count -eq 0) {
+                throw ($script:GuacRestExceptionType::new(
+                    ("The session for server '{0}' has no available data sources." -f $server)
+                ))
+            }
+            # Return a special context that indicates "all" mode with the list of sources
+            return [ordered]@{
+                Session      = $Session
+                Server       = $server
+                Token        = $token
+                DataSource   = 'All'
+                DataSources  = $available
+            }
+        }
+        $available = @($Session.AvailableDataSources)
+        if ($available -and $available.Count -gt 0 -and $available -notcontains $DataSource) {
         throw ($script:GuacRestExceptionType::new(
             ("Data source '{0}' is not available for this user. Available: {1}" -f ($DataSource, ($available -join ', ')))
         ))

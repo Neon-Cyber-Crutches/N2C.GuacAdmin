@@ -96,10 +96,17 @@ function Update-GuacConnectionGroup {
     }
 
     process {
-        if ($null -ne $InputObject) {
-            $pendingId = Get-GuacIdentifier -Object $InputObject
+            if ($null -ne $InputObject) {
+                $pendingId = Get-GuacIdentifier -Object $InputObject
+                # DataSource resolution priority: explicit param > piped object > session default
+                if ([string]::IsNullOrWhiteSpace($DataSource)) {
+                    $pipedDs = Get-GuacDataSourceFromObject -Object $InputObject
+                    if (-not [string]::IsNullOrWhiteSpace($pipedDs)) {
+                        $DataSource = $pipedDs
+                    }
+                }
+            }
         }
-    }
 
     end {
         $hasPatch = ($null -ne $Patch)

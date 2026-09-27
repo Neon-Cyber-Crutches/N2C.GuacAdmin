@@ -1109,6 +1109,10 @@ while ($listener.IsListening) {
     # Extension resource (ExtensionRESTService @Path("/ext/{identifier}"))
     if ($relPath -like '/api/ext/*') {
         $extDs = [uri]::UnescapeDataString($relPath.Substring('/api/ext/'.Length))
+        if ($extDs -eq 'nonexistent' -or $extDs -eq 'ldap') {
+            Send-ApiError -Context $context -Code 404 -Type 'NOT_FOUND' -Message ('No such extension: ' + $extDs)
+            continue
+        }
         $extInfo = [ordered]@{
             dataSource = $extDs
             name = ('guacamole-auth-' + $extDs)

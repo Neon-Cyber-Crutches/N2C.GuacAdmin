@@ -108,6 +108,14 @@ Describe 'Get-GuacLanguage' {
         $languages.fr | Should -Be 'Français'
         $languages.de | Should -Be 'Deutsch'
     }
+    It 'does not throw when no extension exists for the data source' {
+        # 'ldap' is in the mock's availableDataSources but has no extension
+        # registered, so the server returns HTTP 404. The cmdlet should
+        # swallow that and return nothing ($null in PowerShell, since empty
+        # arrays are unwrapped to $null on the caller side).
+        $ext = Get-GuacExtension -Session $session -DataSource 'ldap'
+        $ext | Should -BeNullOrEmpty
+    }
 }
 
 Describe 'Get-GuacPatches' {
@@ -125,7 +133,9 @@ Describe 'Get-GuacExtension' {
         $ext.DataSource | Should -Be 'mysql'
     }
 
-    It 'throws when -DataSource is not supplied' {
-        { Get-GuacExtension -Session $session -ErrorAction Stop } | Should -Throw
+    It 'defaults to the session data source when -DataSource is not supplied' {
+        $ext = Get-GuacExtension -Session $session
+        $ext | Should -Not -BeNullOrEmpty
+        $ext.DataSource | Should -Be 'mysql'
     }
 }

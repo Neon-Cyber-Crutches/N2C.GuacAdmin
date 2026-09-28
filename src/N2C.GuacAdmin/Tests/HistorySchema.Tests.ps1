@@ -31,6 +31,26 @@ Describe 'Get-GuacHistory' {
         $records[0].Username | Should -Be 'guacadmin'
     }
 
+    It 'converts history record startDate and endDate to [DateTime] UTC' {
+        $records = @(Get-GuacHistory -Session $session -Type Connection)
+        $records.Count | Should -BeGreaterOrEqual 1
+        $records[0].StartDate | Should -BeOfType [DateTime]
+        $records[0].EndDate | Should -BeOfType [DateTime]
+        $records[0].StartDate.Kind | Should -Be 'Utc'
+        $records[0].EndDate.Kind | Should -Be 'Utc'
+        # Mock server uses epoch 1767261600000 = 2026-01-01 10:00:00 UTC
+        $records[0].StartDate.Year | Should -Be 2026
+        $records[0].StartDate.Month | Should -Be 1
+        $records[0].StartDate.Day | Should -Be 1
+    }
+
+    It 'converts history record duration to [TimeSpan]' {
+        $records = @(Get-GuacHistory -Session $session -Type Connection)
+        $records.Count | Should -BeGreaterOrEqual 1
+        $records[0].Duration | Should -BeOfType [TimeSpan]
+        $records[0].Duration.TotalSeconds | Should -Be 1800
+    }
+
     It 'returns user history records' {
         $records = @(Get-GuacHistory -Session $session -Type User)
         $records.Count | Should -BeGreaterOrEqual 1

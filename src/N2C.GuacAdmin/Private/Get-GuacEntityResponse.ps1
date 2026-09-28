@@ -105,6 +105,146 @@ function ConvertTo-GuacMapValue {
     return $Value
 }
 
+function Convert-GuacEpochToDateTime {
+    <#
+    .SYNOPSIS
+        Converts a Unix epoch millisecond timestamp to a [DateTime] UTC.
+
+    .DESCRIPTION
+        The Guacamole REST API returns time values as Unix epoch milliseconds
+        (e.g., 1790203199488). This helper converts such values to [DateTime]
+        objects with Kind = Utc, which is PowerShell-idiomatic. Null values
+        remain null; non-numeric values are returned unchanged.
+
+        Reference: Guacamole uses java.sql.Timestamp which is inherently UTC.
+
+        This function is private to the N2C.GuacAdmin module.
+    #>
+    [CmdletBinding()]
+    [OutputType([DateTime])]
+    param (
+        [Parameter(Position = 0)]
+        [AllowNull()]
+        [object] $EpochMillis
+    )
+
+    if ($null -eq $EpochMillis) {
+        return $null
+    }
+
+    # Already a DateTime? Return as-is
+    if ($EpochMillis -is [DateTime]) {
+        return $EpochMillis.ToUniversalTime()
+    }
+
+    # Try to parse as numeric (epoch milliseconds)
+    $numeric = 0
+    if ([double]::TryParse($EpochMillis, [ref]$numeric)) {
+        # Unix epoch: 1970-01-01 00:00:00 UTC
+        $epoch = [DateTime]::new(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
+        return $epoch.AddMilliseconds($numeric)
+    }
+
+    # Return unchanged if not numeric
+    return $EpochMillis
+}
+
+function Convert-GuacDurationToTimeSpan {
+    <#
+    .SYNOPSIS
+        Converts a duration in seconds to a [TimeSpan].
+
+    .DESCRIPTION
+        Guacamole history records include duration in seconds. This helper
+        converts such values to [TimeSpan] for better readability. Null values
+        remain null.
+
+        This function is private to the N2C.GuacAdmin module.
+    #>
+    [CmdletBinding()]
+    [OutputType([TimeSpan])]
+    param (
+        [Parameter(Position = 0)]
+        [AllowNull()]
+        [object] $Seconds
+    )
+
+    if ($null -eq $Seconds) {
+        return $null
+    }
+
+    if ($Seconds -is [TimeSpan]) {
+        return $Seconds
+    }
+
+    $numeric = 0.0
+    if ([double]::TryParse($Seconds, [ref]$numeric)) {
+        return [TimeSpan]::FromSeconds($numeric)
+    }
+
+    return $Seconds
+}
+
+function Convert-GuacHistoryRecord {
+    <#
+    .SYNOPSIS
+        Converts epoch timestamps in a Guacamole history record to DateTime/TimeSpan.
+
+    .DESCRIPTION
+        Converts startDate and endDate (epoch ms) to [DateTime] UTC and
+        duration (seconds) to [TimeSpan] in APIConnectionRecord and
+        APIUserRecord objects.
+
+        This function is private to the N2C.GuacAdmin module.
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param (
+        [Parameter(Position = 0, Mandatory = $true)]
+        [object] $Record
+    )
+
+    if ($null -eq $Record) {
+        return $null
+    }
+
+    # Handle both PSCustomObject and hashtable inputs
+    if ($Record -is [System.Collections.IDictionary]) {
+        if ($Record.ContainsKey('startDate') -and $null -ne $Record['startDate']) {
+            $Record['startDate'] = Convert-GuacEpochToDateTime -EpochMillis $Record['startDate']
+        }
+        if ($Record.ContainsKey('endDate') -and $null -ne $Record['endDate']) {
+            $Record['endDate'] = Convert-GuacEpochToDateTime -EpochMillis $Record['endDate']
+        }
+        if ($Record.ContainsKey('duration') -and $null -ne $Record['duration']) {
+            $Record['duration'] = Convert-GuacDurationToTimeSpan -Seconds $Record['duration']
+        }
+        return $Record
+    }
+    else {
+        foreach ($prop in $Record.PSObject.Properties) {
+            switch ($prop.Name) {
+                'startDate' {
+                    if ($null -ne $prop.Value) {
+                        $prop.Value = Convert-GuacEpochToDateTime -EpochMillis $prop.Value
+                    }
+                }
+                'endDate' {
+                    if ($null -ne $prop.Value) {
+                        $prop.Value = Convert-GuacEpochToDateTime -EpochMillis $prop.Value
+                    }
+                }
+                'duration' {
+                    if ($null -ne $prop.Value) {
+                        $prop.Value = Convert-GuacDurationToTimeSpan -Seconds $prop.Value
+                    }
+                }
+            }
+        }
+        return $Record
+    }
+}
+
 function Get-GuacEntityResponse {
     <#
     .SYNOPSIS
@@ -135,20 +275,24 @@ function Get-GuacEntityResponse {
         This function is private to the N2C.GuacAdmin module.
     #>
     [CmdletBinding()]
-        [OutputType([PSCustomObject])]
-        param (
-            [Parameter(Position = 0)]
-            [AllowNull()]
-            [object] $Response,
-    
-            [Parameter(Position = 1)]
-            [AllowEmptyString()]
-            [string] $Identifier = [string]::Empty,
-    
-            [Parameter(Position = 2)]
-            [AllowEmptyString()]
-            [string] $DataSource = [string]::Empty
-        )
+    [OutputType([PSCustomObject])]
+    param (
+        [Parameter(Position = 0)]
+        [AllowNull()]
+        [object] $Response,
+
+        [Parameter(Position = 1)]
+        [AllowEmptyString()]
+        [string] $Identifier = [string]::Empty,
+
+        [Parameter(Position = 2)]
+        [AllowEmptyString()]
+        [string] $DataSource = [string]::Empty,
+
+        [Parameter(Position = 3)]
+        [AllowEmptyString()]
+        [string] $EntityType = [string]::Empty
+    )
 
     if ($null -eq $Response) {
         return $null
@@ -171,12 +315,37 @@ function Get-GuacEntityResponse {
         }
     }
     if (-not [string]::IsNullOrWhiteSpace($Identifier)) {
-            $props['Identifier'] = $Identifier
+        $props['Identifier'] = $Identifier
+    }
+    if (-not [string]::IsNullOrWhiteSpace($DataSource)) {
+        $props['DataSource'] = $DataSource
+    }
+
+    # Convert epoch timestamps to [DateTime] UTC based on entity type
+    if (-not [string]::IsNullOrWhiteSpace($EntityType)) {
+        switch ($EntityType) {
+            'activeConnections' {
+                # APIActiveConnection: startDate (epoch ms)
+                if ($null -ne $props['startDate']) {
+                    $props['startDate'] = Convert-GuacEpochToDateTime -EpochMillis $props['startDate']
+                }
+            }
+            'connections' {
+                # APIConnection: lastActive (epoch ms)
+                if ($null -ne $props['lastActive']) {
+                    $props['lastActive'] = Convert-GuacEpochToDateTime -EpochMillis $props['lastActive']
+                }
+            }
+            'users' {
+                # APIUser: lastActive (epoch ms)
+                if ($null -ne $props['lastActive']) {
+                    $props['lastActive'] = Convert-GuacEpochToDateTime -EpochMillis $props['lastActive']
+                }
+            }
         }
-        if (-not [string]::IsNullOrWhiteSpace($DataSource)) {
-            $props['DataSource'] = $DataSource
-        }
-        return [PSCustomObject]$props
+    }
+
+    return [PSCustomObject]$props
 }
 
 function ConvertTo-GuacEntityBody {

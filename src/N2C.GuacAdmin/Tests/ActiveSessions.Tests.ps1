@@ -41,6 +41,16 @@ Describe 'Get-GuacActiveConnection' {
         $activeConn.Username | Should -Be 'guacadmin'
     }
 
+    It 'converts startDate to [DateTime] UTC' {
+        $activeConn = Get-GuacActiveConnection -Session $session -Id 'active-1'
+        $activeConn.StartDate | Should -BeOfType [DateTime]
+        $activeConn.StartDate.Kind | Should -Be 'Utc'
+        # Mock server uses epoch 1767261600000 = 2026-01-01 10:00:00 UTC
+        $activeConn.StartDate.Year | Should -Be 2026
+        $activeConn.StartDate.Month | Should -Be 1
+        $activeConn.StartDate.Day | Should -Be 1
+    }
+
     It 'throws for an unknown active connection id' {
         { Get-GuacActiveConnection -Session $session -Id 'does-not-exist' -ErrorAction Stop } | Should -Throw
     }

@@ -113,11 +113,13 @@ function Get-GuacHistory {
                     if ($response) {
                         if ($response -is [array]) {
                             foreach ($item in $response) {
+                                Convert-GuacHistoryRecord -Record $item | Out-Null
                                 $item | Add-Member -NotePropertyName DataSource -NotePropertyValue $ds -Force
                                 Write-Output $item
                             }
                         }
                         else {
+                            Convert-GuacHistoryRecord -Record $response | Out-Null
                             $response | Add-Member -NotePropertyName DataSource -NotePropertyValue $ds -Force
                             Write-Output $response
                         }
@@ -150,5 +152,17 @@ function Get-GuacHistory {
     if ($queryParts.Count -gt 0) { $query = ($queryParts -join '&') }
 
     $path = Resolve-GuacContextUrl -DataSource $ctx['DataSource'] -Collection 'history' -SubPath $subPath -Query $query
-    return (Invoke-GuacRest -Server $ctx['Server'] -Token $ctx['Token'] -Method GET -Path $path)
+    $response = Invoke-GuacRest -Server $ctx['Server'] -Token $ctx['Token'] -Method GET -Path $path
+    if ($response) {
+        if ($response -is [array]) {
+            foreach ($item in $response) {
+                Convert-GuacHistoryRecord -Record $item | Out-Null
+                Write-Output $item
+            }
+        }
+        else {
+            Convert-GuacHistoryRecord -Record $response | Out-Null
+            Write-Output $response
+        }
+    }
 }

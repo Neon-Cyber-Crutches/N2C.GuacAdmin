@@ -376,15 +376,21 @@ function Get-GuacEntityResponse {
                 }
             }
             'connections' {
-                # APIConnection: lastActive (epoch ms)
+                # APIConnection: lastActive (epoch ms). Always present; null if never used.
                 if ($null -ne $props['lastActive']) {
                     $props['lastActive'] = Convert-GuacEpochToDateTime -EpochMillis $props['lastActive']
                 }
+                else {
+                    $props['lastActive'] = $null
+                }
             }
             'users' {
-                # APIUser: lastActive (epoch ms)
+                # APIUser: lastActive (epoch ms). Always present; null if never used.
                 if ($null -ne $props['lastActive']) {
                     $props['lastActive'] = Convert-GuacEpochToDateTime -EpochMillis $props['lastActive']
+                }
+                else {
+                    $props['lastActive'] = $null
                 }
             }
         }

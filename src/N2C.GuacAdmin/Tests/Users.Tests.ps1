@@ -52,6 +52,11 @@ Describe 'Get-GuacUser' {
         $user = Get-GuacUser -Session $session -Id 'jdoe' -EffectivePermissions
         $user.EffectivePermissions | Should -Not -BeNullOrEmpty
     }
+
+    It 'always has a lastActive property (null if never used)' {
+        $user = Get-GuacUser -Session $session -Id 'jdoe'
+        $user.PSObject.Properties['lastActive'] | Should -Not -Be $null
+    }
 }
 
 Describe 'Get-GuacUser filters' {

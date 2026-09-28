@@ -75,6 +75,11 @@ Describe 'Get-GuacConnection' {
         $conn = Get-GuacConnection -Session $session -Id 'conn-2'
         $conn.ParentGroupName | Should -Be 'ROOT'
     }
+
+    It 'always has a lastActive property (null if never used)' {
+        $conn = Get-GuacConnection -Session $session -Id 'conn-1'
+        $conn.PSObject.Properties['lastActive'] | Should -Not -Be $null
+    }
 }
 
 Describe 'Get-GuacConnection filters' {

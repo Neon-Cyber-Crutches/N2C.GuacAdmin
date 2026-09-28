@@ -126,3 +126,84 @@ Describe 'DataSource resolution priority in pipeline' {
         } | Should -Throw
     }
 }
+
+Describe 'Set-GuacDataSource' {
+    It 'changes the default data source for the session' {
+        # Set to ldap
+        $updated = Set-GuacDataSource -DataSource 'ldap' -Session $session
+        $updated.DataSource | Should -Be 'ldap'
+        $session.DataSource | Should -Be 'ldap'
+
+        # Verify Get-GuacConnection uses ldap by default now
+        # (will throw because conn-1 doesn't exist in ldap)
+        {
+            Get-GuacConnection -Session $session -Id 'conn-1' -ErrorAction Stop
+        } | Should -Throw
+
+        # Set back to mysql
+        Set-GuacDataSource -DataSource 'mysql' -Session $session
+        $session.DataSource | Should -Be 'mysql'
+
+        # Verify Get-GuacConnection works with mysql again
+        $conn = Get-GuacConnection -Session $session -Id 'conn-1' -ErrorAction Stop
+        $conn.Name | Should -Be 'test-connection'
+    }
+
+    It 'works with -Server parameter' {
+        # Use -Server instead of -Session
+        Set-GuacDataSource -Server $mock.BaseUrl -DataSource 'ldap'
+        $stateSession = Get-GuacSession -Server $mock.BaseUrl
+        $stateSession.DataSource | Should -Be 'ldap'
+
+        # Set back to mysql
+        Set-GuacDataSource -Server $mock.BaseUrl -DataSource 'mysql'
+        $stateSession = Get-GuacSession -Server $mock.BaseUrl
+        $stateSession.DataSource | Should -Be 'mysql'
+    }
+
+    It 'works with no -Session or -Server when exactly one session exists' {
+        # Clear session state except for the single test session
+        # (this is the fallback case where exactly one session is registered)
+        Set-GuacDataSource -DataSource 'ldap'
+        $stateSession = Get-GuacSession -Server $mock.BaseUrl
+        $stateSession.DataSource | Should -Be 'ldap'
+
+        # Set back to mysql
+        Set-GuacDataSource -DataSource 'mysql'
+        $stateSession = Get-GuacSession -Server $mock.BaseUrl
+        $stateSession.DataSource | Should -Be 'mysql'
+    }
+
+    It 'throws when data source is not available' {
+        {
+            Set-GuacDataSource -DataSource 'nonexistent' -Session $session -ErrorAction Stop
+        } | Should -Throw
+    }
+
+    It 'throws when -DataSource is empty' {
+        {
+            Set-GuacDataSource -DataSource '' -Session $session -ErrorAction Stop
+        } | Should -Throw
+    }
+
+    It 'per-call -DataSource still overrides session default' {
+        # Set session default to ldap
+        Set-GuacDataSource -DataSource 'ldap' -Session $session
+
+        # Query with explicit -DataSource mysql should still work
+        $conn = Get-GuacConnection -Session $session -Id 'conn-1' -DataSource 'mysql'
+        $conn.Name | Should -Be 'test-connection'
+
+        # Set back to mysql
+        Set-GuacDataSource -DataSource 'mysql' -Session $session
+    }
+
+    It 'returns the updated session object' {
+        $updated = Set-GuacDataSource -DataSource 'ldap' -Session $session
+        $updated | Should -Not -BeNullOrEmpty
+        $updated.DataSource | Should -Be 'ldap'
+
+        # Set back to mysql
+        Set-GuacDataSource -DataSource 'mysql' -Session $session
+    }
+}

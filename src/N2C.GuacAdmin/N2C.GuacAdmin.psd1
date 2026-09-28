@@ -17,7 +17,7 @@
     # entity CRUD, permissions/membership, history, schemas; phase 3: active
     # sessions, tunnels, languages, patches, extensions)
     FunctionsToExport = @(
-        'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession',
+        'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession', 'Set-GuacDataSource',
         'Get-GuacConnection', 'New-GuacConnection', 'Update-GuacConnection', 'Remove-GuacConnection',
         'Get-GuacConnectionGroup', 'Get-GuacConnectionGroupTree', 'New-GuacConnectionGroup', 'Update-GuacConnectionGroup', 'Remove-GuacConnectionGroup',
         'Get-GuacUser', 'New-GuacUser', 'Update-GuacUser', 'Remove-GuacUser', 'Set-GuacUserPassword',

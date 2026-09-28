@@ -277,7 +277,7 @@ Describe 'Module manifest and export' {
         $sm = Get-Module N2C.GuacAdmin
         # ExportedFunctions is a plain hashtable: compare as a set, not by order.
         $expected = @(
-            'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession',
+            'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession', 'Set-GuacDataSource',
             'Get-GuacConnection', 'New-GuacConnection', 'Update-GuacConnection', 'Remove-GuacConnection',
             'Get-GuacConnectionGroup', 'Get-GuacConnectionGroupTree', 'New-GuacConnectionGroup', 'Update-GuacConnectionGroup', 'Remove-GuacConnectionGroup',
             'Get-GuacUser', 'New-GuacUser', 'Update-GuacUser', 'Remove-GuacUser', 'Set-GuacUserPassword',

@@ -79,7 +79,7 @@ Get-ChildItem -Path $publicPath -Filter '*.ps1' -File | ForEach-Object {
 }
 
 Export-ModuleMember -Function @(
-    'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession',
+    'New-GuacSession', 'Get-GuacSession', 'Remove-GuacSession', 'Test-GuacSession', 'Set-GuacDataSource',
     'Get-GuacConnection', 'New-GuacConnection', 'Update-GuacConnection', 'Remove-GuacConnection',
     'Get-GuacConnectionGroup', 'Get-GuacConnectionGroupTree', 'New-GuacConnectionGroup', 'Update-GuacConnectionGroup', 'Remove-GuacConnectionGroup',
     'Get-GuacUser', 'New-GuacUser', 'Update-GuacUser', 'Remove-GuacUser', 'Set-GuacUserPassword',

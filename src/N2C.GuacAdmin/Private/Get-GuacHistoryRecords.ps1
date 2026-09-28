@@ -76,8 +76,13 @@ function Get-GuacHistoryRecords {
             try {
                 $subPath = if ($Type -eq 'Connection') { 'connections' } else { 'users' }
 
+                # For user history, avoid the "contains" query parameter due to
+                # the upstream JDBC mapper bug; filter client-side instead.
+                $useServerFilter = ($Type -eq 'Connection')
+                $hasContains = ($null -ne $Contains) -and ($Contains.Count -gt 0)
+
                 $queryParts = [System.Collections.Generic.List[string]]::new()
-                if ($null -ne $Contains) {
+                if ($useServerFilter -and $hasContains) {
                     foreach ($c in $Contains) {
                         if (-not [string]::IsNullOrWhiteSpace($c)) {
                             $queryParts.Add(('contains={0}' -f [Uri]::EscapeDataString($c)))
@@ -94,17 +99,26 @@ function Get-GuacHistoryRecords {
                 $path = Resolve-GuacContextUrl -DataSource $singleCtx['DataSource'] -Collection 'history' -SubPath $subPath -Query $query
                 $response = Invoke-GuacRest -Server $singleCtx['Server'] -Token $singleCtx['Token'] -Method GET -Path $path
                 if ($response) {
-                    if ($response -is [array]) {
-                        foreach ($item in $response) {
-                            Convert-GuacHistoryRecord -Record $item | Out-Null
-                            $item | Add-Member -NotePropertyName DataSource -NotePropertyValue $ds -Force
-                            Write-Output $item
+                    $items = if ($response -is [array]) { $response } else { @($response) }
+                    foreach ($item in $items) {
+                        Convert-GuacHistoryRecord -Record $item | Out-Null
+                        $item | Add-Member -NotePropertyName DataSource -NotePropertyValue $ds -Force
+
+                        # Client-side filtering for user history
+                        if (-not $useServerFilter -and $hasContains) {
+                            $match = $true
+                            foreach ($term in $Contains) {
+                                if ([string]::IsNullOrWhiteSpace($term)) { continue }
+                                $termLower = $term.ToLower()
+                                if ($item.Username -and $item.Username.ToString().ToLower().Contains($termLower)) { continue }
+                                if ($item.RemoteHost -and $item.RemoteHost.ToString().ToLower().Contains($termLower)) { continue }
+                                if ($item.StartDate -and $item.StartDate.ToString('yyyy-MM-dd').Contains($termLower)) { continue }
+                                $match = $false
+                                break
+                            }
+                            if (-not $match) { continue }
                         }
-                    }
-                    else {
-                        Convert-GuacHistoryRecord -Record $response | Out-Null
-                        $response | Add-Member -NotePropertyName DataSource -NotePropertyValue $ds -Force
-                        Write-Output $response
+                        Write-Output $item
                     }
                 }
             }
@@ -119,33 +133,93 @@ function Get-GuacHistoryRecords {
 
     $subPath = if ($Type -eq 'Connection') { 'connections' } else { 'users' }
 
-    $queryParts = [System.Collections.Generic.List[string]]::new()
-    if ($null -ne $Contains) {
+    # Determine if we should do server-side or client-side filtering.
+    # For user history, the Guacamole JDBC mapper has an SQL syntax bug in the
+    # search query that causes HTTP 500 when using the "contains" query
+    # parameter (verified against guacamole-client-1.6.0 source). Additionally,
+    # user history records only contain username and remoteHost — there is no
+    # connection name to search. So for user history with -Contains, we always
+    # fetch all records and filter client-side.
+    $useServerFilter = ($Type -eq 'Connection')
+    $hasContains = ($null -ne $Contains) -and ($Contains.Count -gt 0)
+
+    if ($useServerFilter -and $hasContains) {
+        # Connection history: use server-side filtering (works correctly)
+        $queryParts = [System.Collections.Generic.List[string]]::new()
         foreach ($c in $Contains) {
             if (-not [string]::IsNullOrWhiteSpace($c)) {
                 $queryParts.Add(('contains={0}' -f [Uri]::EscapeDataString($c)))
             }
         }
+        if (-not [string]::IsNullOrWhiteSpace($Order)) {
+            $queryParts.Add(('order={0}' -f [Uri]::EscapeDataString($Order)))
+        }
+        $query = [string]::Empty
+        if ($queryParts.Count -gt 0) { $query = ($queryParts -join '&') }
     }
-    if (-not [string]::IsNullOrWhiteSpace($Order)) {
-        $queryParts.Add(('order={0}' -f [Uri]::EscapeDataString($Order)))
+    else {
+        # User history or no contains: only pass order if specified
+        $queryParts = [System.Collections.Generic.List[string]]::new()
+        if (-not [string]::IsNullOrWhiteSpace($Order)) {
+            $queryParts.Add(('order={0}' -f [Uri]::EscapeDataString($Order)))
+        }
+        $query = [string]::Empty
+        if ($queryParts.Count -gt 0) { $query = ($queryParts -join '&') }
     }
-
-    $query = [string]::Empty
-    if ($queryParts.Count -gt 0) { $query = ($queryParts -join '&') }
 
     $path = Resolve-GuacContextUrl -DataSource $ctx['DataSource'] -Collection 'history' -SubPath $subPath -Query $query
     $response = Invoke-GuacRest -Server $ctx['Server'] -Token $ctx['Token'] -Method GET -Path $path
+
+    # Collect results into an array so we can filter client-side if needed
+    $records = [System.Collections.Generic.List[PSCustomObject]]::new()
     if ($response) {
         if ($response -is [array]) {
             foreach ($item in $response) {
                 Convert-GuacHistoryRecord -Record $item | Out-Null
-                Write-Output $item
+                $records.Add($item)
             }
         }
         else {
             Convert-GuacHistoryRecord -Record $response | Out-Null
-            Write-Output $response
+            $records.Add($response)
+        }
+    }
+
+    # Client-side filtering for user history
+    if (-not $useServerFilter -and $hasContains) {
+        $filtered = [System.Collections.Generic.List[PSCustomObject]]::new()
+        foreach ($rec in $records) {
+            $match = $true
+            foreach ($term in $Contains) {
+                if ([string]::IsNullOrWhiteSpace($term)) { continue }
+                $termLower = $term.ToLower()
+
+                # Check username
+                if ($rec.Username -and $rec.Username.ToString().ToLower().Contains($termLower)) {
+                    continue
+                }
+                # Check remoteHost
+                if ($rec.RemoteHost -and $rec.RemoteHost.ToString().ToLower().Contains($termLower)) {
+                    continue
+                }
+                # Check startDate as string (for date-like search terms)
+                if ($rec.StartDate -and $rec.StartDate.ToString('yyyy-MM-dd').Contains($termLower)) {
+                    continue
+                }
+                $match = $false
+                break
+            }
+            if ($match) {
+                $filtered.Add($rec)
+            }
+        }
+        foreach ($rec in $filtered) {
+            Write-Output $rec
+        }
+    }
+    else {
+        foreach ($rec in $records) {
+            Write-Output $rec
         }
     }
 }

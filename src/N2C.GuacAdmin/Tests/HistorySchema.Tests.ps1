@@ -70,13 +70,36 @@ Describe 'Get-GuacHistoryUsers' {
         $records[0].Uuid | Should -Not -BeNullOrEmpty
     }
 
-    It 'passes -Contains and -Order as query parameters' {
+    It 'filters user history client-side by username (-Contains)' {
+        # User history uses client-side filtering because the upstream Guacamole
+        # JDBC mapper has an SQL bug when using the "contains" query parameter.
+        $records = @(Get-GuacHistoryUsers -Session $session -Contains 'guacadmin' -Order '-startDate')
+        $records.Count | Should -BeGreaterOrEqual 1
+        foreach ($rec in $records) {
+            $rec.Username | Should -Be 'guacadmin'
+        }
+    }
+
+    It 'does not pass -Contains as a query parameter for user history' {
         Get-GuacHistoryUsers -Session $session -Contains 'guacadmin' -Order '-startDate' | Out-Null
 
         $requests = Get-GuacMockLog -FilterPath '/api/session/data/mysql/history/users'
         $last = $requests[-1]
-        $last.query | Should -BeLike '*contains=guacadmin*'
+        $last.query | Should -Not -BeLike '*contains=*'
         $last.query | Should -BeLike '*order=-startDate*'
+    }
+
+    It 'filters user history client-side by remoteHost' {
+        $records = @(Get-GuacHistoryUsers -Session $session -Contains '10.0.0.5')
+        $records.Count | Should -BeGreaterOrEqual 1
+        foreach ($rec in $records) {
+            $rec.RemoteHost | Should -Be '10.0.0.5'
+        }
+    }
+
+    It 'returns no records when -Contains matches nothing' {
+        $records = @(Get-GuacHistoryUsers -Session $session -Contains 'nonexistent-user-xyz')
+        $records.Count | Should -Be 0
     }
 }
 

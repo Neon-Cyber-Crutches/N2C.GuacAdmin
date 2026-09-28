@@ -285,7 +285,7 @@ Describe 'Module manifest and export' {
             'Get-GuacSharingProfile', 'New-GuacSharingProfile', 'Update-GuacSharingProfile', 'Remove-GuacSharingProfile',
             'Add-GuacPermission', 'Remove-GuacPermission',
             'Add-GuacUserGroupMember', 'Remove-GuacUserGroupMember', 'Add-GuacUserGroupChildGroup', 'Remove-GuacUserGroupChildGroup',
-            'Get-GuacHistory', 'Get-GuacSchema', 'Get-GuacProtocol',
+            'Get-GuacHistoryConnections', 'Get-GuacHistoryUsers', 'Get-GuacSchema', 'Get-GuacProtocol',
             'Get-GuacActiveConnection', 'Stop-GuacActiveConnection', 'Get-GuacSharingCredential',
             'Get-GuacTunnel', 'Get-GuacLanguage', 'Get-GuacPatches', 'Get-GuacExtension',
             'New-GuacActiveSession', 'Send-GuacInstruction', 'Receive-GuacInstruction', 'Remove-GuacActiveSession'

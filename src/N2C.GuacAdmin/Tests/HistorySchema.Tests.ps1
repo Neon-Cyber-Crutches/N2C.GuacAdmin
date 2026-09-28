@@ -23,16 +23,16 @@ AfterAll {
     }
 }
 
-Describe 'Get-GuacHistory' {
+Describe 'Get-GuacHistoryConnections' {
     It 'returns connection history records' {
-        $records = @(Get-GuacHistory -Session $session -Type Connection)
+        $records = @(Get-GuacHistoryConnections -Session $session)
         $records.Count | Should -BeGreaterOrEqual 1
         $records[0].ConnectionName | Should -Be 'test-connection'
         $records[0].Username | Should -Be 'guacadmin'
     }
 
     It 'converts history record startDate and endDate to [DateTime] UTC' {
-        $records = @(Get-GuacHistory -Session $session -Type Connection)
+        $records = @(Get-GuacHistoryConnections -Session $session)
         $records.Count | Should -BeGreaterOrEqual 1
         $records[0].StartDate | Should -BeOfType [DateTime]
         $records[0].EndDate | Should -BeOfType [DateTime]
@@ -45,14 +45,25 @@ Describe 'Get-GuacHistory' {
     }
 
     It 'converts history record duration to [TimeSpan]' {
-        $records = @(Get-GuacHistory -Session $session -Type Connection)
+        $records = @(Get-GuacHistoryConnections -Session $session)
         $records.Count | Should -BeGreaterOrEqual 1
         $records[0].Duration | Should -BeOfType [TimeSpan]
         $records[0].Duration.TotalSeconds | Should -Be 1800
     }
 
+    It 'passes -Contains and -Order as query parameters' {
+        Get-GuacHistoryConnections -Session $session -Contains 'guacadmin' -Order '-startDate' | Out-Null
+
+        $requests = Get-GuacMockLog -FilterPath '/api/session/data/mysql/history/connections'
+        $last = $requests[-1]
+        $last.query | Should -BeLike '*contains=guacadmin*'
+        $last.query | Should -BeLike '*order=-startDate*'
+    }
+}
+
+Describe 'Get-GuacHistoryUsers' {
     It 'returns user history records' {
-        $records = @(Get-GuacHistory -Session $session -Type User)
+        $records = @(Get-GuacHistoryUsers -Session $session)
         $records.Count | Should -BeGreaterOrEqual 1
         $records[0].Username | Should -Be 'guacadmin'
         $records[0].Identifier | Should -Not -BeNullOrEmpty
@@ -60,16 +71,12 @@ Describe 'Get-GuacHistory' {
     }
 
     It 'passes -Contains and -Order as query parameters' {
-        Get-GuacHistory -Session $session -Type Connection -Contains 'guacadmin' -Order '-startDate' | Out-Null
+        Get-GuacHistoryUsers -Session $session -Contains 'guacadmin' -Order '-startDate' | Out-Null
 
-        $requests = Get-GuacMockLog -FilterPath '/api/session/data/mysql/history/connections'
+        $requests = Get-GuacMockLog -FilterPath '/api/session/data/mysql/history/users'
         $last = $requests[-1]
         $last.query | Should -BeLike '*contains=guacadmin*'
         $last.query | Should -BeLike '*order=-startDate*'
-    }
-
-    It 'requires -Type' {
-        { Get-GuacHistory -Session $session -ErrorAction Stop } | Should -Throw
     }
 }
 

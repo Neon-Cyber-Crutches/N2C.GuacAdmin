@@ -82,7 +82,8 @@ Shared building blocks:
 - [x] `Add-GuacPermission` / `Remove-GuacPermission` — `PATCH .../{users|userGroups}/{id}/permissions` with `[{"op":"add|remove","path":"/{category}/{identifier}","value":"{TYPE}"}]`; subject via `-User`/`-UserGroup` or a piped entity object; targets `-Connection`, `-ConnectionGroup`, `-SharingProfile`, `-ActiveConnection`, `-System`. Cite: `PermissionSetResource.java`, `APIPermissionSet.java`.
 
 ### 2f. History & schemas (read-only)
-- [x] `Get-GuacHistory` — `.../history/connections` / `.../history/users` (filterable, `-First` limit). Cite: `HistoryResource.java`.
+- [x] `Get-GuacHistoryConnections` — `.../history/connections` (filterable, `-First` limit). Cite: `HistoryResource.java`.
+- [x] `Get-GuacHistoryUsers` — `.../history/users` (filterable, `-First` limit). Cite: `HistoryResource.java`.
 - [x] `Get-GuacSchema` — `.../schema/connectionAttributes`, `connectionParameters`, `connectionGroupAttributes`, `userAttributes`, `userGroupAttributes`, `sharingProfileAttributes/Parameters`. Cite: `SchemaResource.java`.
 - [x] `Get-GuacProtocol` — `GET /api/session/protocols` (server-side protocol list + forms). Cite: `ProtocolResource.java`.
 

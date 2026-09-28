@@ -79,7 +79,7 @@ function Invoke-GuacDirectory {
                 return
             }
             foreach ($entry in (Get-GuacMapEntries -Map $map)) {
-                $wrapped = Get-GuacEntityResponse -Response $entry.Value -Identifier $entry.Key -DataSource $dataSource
+                $wrapped = Get-GuacEntityResponse -Response $entry.Value -Identifier $entry.Key -DataSource $dataSource -EntityType $Collection
                                 if ($null -ne $wrapped) {
                                     Write-Output $wrapped
                                 }
@@ -88,7 +88,7 @@ function Invoke-GuacDirectory {
         'Get' {
             $path = Resolve-GuacContextUrl -DataSource $dataSource -Collection $Collection -Id $Id
             $response = Invoke-GuacRest -Server $server -Token $token -Method GET -Path $path
-            return (Get-GuacEntityResponse -Response $response -Identifier $Id -DataSource $dataSource)
+            return (Get-GuacEntityResponse -Response $response -Identifier $Id -DataSource $dataSource -EntityType $Collection)
         }
         'Create' {
             $path = Resolve-GuacContextUrl -DataSource $dataSource -Collection $Collection
@@ -99,7 +99,7 @@ function Invoke-GuacDirectory {
             if ($null -ne $created) {
                 $identifier = Get-GuacIdentifier -Object (Get-GuacEntityResponse -Response $created)
             }
-            return (Get-GuacEntityResponse -Response $created -Identifier $identifier -DataSource $dataSource)
+            return (Get-GuacEntityResponse -Response $created -Identifier $identifier -DataSource $dataSource -EntityType $Collection)
         }
         'Update' {
             $path = Resolve-GuacContextUrl -DataSource $dataSource -Collection $Collection -Id $Id
@@ -107,7 +107,7 @@ function Invoke-GuacDirectory {
             Invoke-GuacRest -Server $server -Token $token -Method PUT `
                 -Path $path -Body $jsonBody -ContentType 'application/json' | Out-Null
             $updated = Invoke-GuacRest -Server $server -Token $token -Method GET -Path $path
-            return (Get-GuacEntityResponse -Response $updated -Identifier $Id -DataSource $dataSource)
+            return (Get-GuacEntityResponse -Response $updated -Identifier $Id -DataSource $dataSource -EntityType $Collection)
         }
         'Delete' {
             $path = Resolve-GuacContextUrl -DataSource $dataSource -Collection $Collection -Id $Id

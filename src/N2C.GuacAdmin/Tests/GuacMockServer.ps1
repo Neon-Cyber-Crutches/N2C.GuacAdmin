@@ -135,13 +135,13 @@ function New-GuacMockSeededContext {
         name = 'test-connection'; protocol = 'rdp'
         parameters = @{ hostname = 'host.example.com' }
         parentIdentifier = 'ROOT'; attributes = @{}
-        maximumConnections = -1; lastActive = $null
+        maximumConnections = -1; lastActive = 1767261600000
     }
     $Ctx['connections']['conn-2'] = [ordered]@{
         name = 'ssh-server'; protocol = 'ssh'
         parameters = @{ hostname = 'ssh.example.com'; port = '22' }
         parentIdentifier = 'ROOT'; attributes = @{}
-        maximumConnections = -1; lastActive = $null
+        maximumConnections = -1; lastActive = 1767263400000
     }
 
     $Ctx['connectionGroups'] = @{}
@@ -157,10 +157,10 @@ function New-GuacMockSeededContext {
     $Ctx['users'] = @{}
     $Ctx['users']['guacadmin'] = [ordered]@{
         username = 'guacadmin'; password = 'secret'; disabled = $false
-        attributes = @{ 'guac-full-name' = 'Guac Admin' }; lastActive = $null
+        attributes = @{ 'guac-full-name' = 'Guac Admin' }; lastActive = 1767261600000
     }
     $Ctx['users']['jdoe'] = [ordered]@{
-        username = 'jdoe'; password = 'jdoe-pass'; disabled = $false; attributes = @{}; lastActive = $null
+        username = 'jdoe'; password = 'jdoe-pass'; disabled = $false; attributes = @{}; lastActive = 1767263400000
     }
 
     $Ctx['userGroups'] = @{}
@@ -193,14 +193,14 @@ function New-GuacMockSeededContext {
             [ordered]@{
                 identifier = 'rec-1'; connectionIdentifier = 'conn-1'; connectionName = 'test-connection'
                 username = 'guacadmin'; remoteHost = '10.0.0.5'
-                startDate = '2026-01-01T10:00:00Z'; endDate = '2026-01-01T10:30:00Z'
+                startDate = 1767261600000; endDate = 1767263400000
                 duration = 1800; readOnly = $false; sharingProfile = $null
             }
         )
         users = @(
             [ordered]@{
                 username = 'guacadmin'; remoteHost = '10.0.0.5'
-                startDate = '2026-01-01T10:00:00Z'; endDate = '2026-01-01T10:30:00Z'
+                startDate = 1767261600000; endDate = 1767263400000
                 duration = 1800; connectionCount = 1; readWriteCount = 1; readOnlyCount = 0
             }
         )
@@ -211,7 +211,7 @@ function New-GuacMockSeededContext {
     $Ctx['activeConnections']['active-1'] = [ordered]@{
         identifier = 'active-1'
         connectionIdentifier = 'conn-1'
-        startDate = '2026-09-23T10:00:00Z'
+        startDate = 1767261600000
         remoteHost = '10.0.0.5'
         username = 'guacadmin'
         connectable = $true
@@ -219,7 +219,7 @@ function New-GuacMockSeededContext {
     $Ctx['activeConnections']['active-2'] = [ordered]@{
         identifier = 'active-2'
         connectionIdentifier = 'conn-2'
-        startDate = '2026-09-23T10:15:00Z'
+        startDate = 1767263400000
         remoteHost = '192.168.1.10'
         username = 'jdoe'
         connectable = $true

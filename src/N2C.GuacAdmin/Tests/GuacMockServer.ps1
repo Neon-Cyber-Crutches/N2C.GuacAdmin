@@ -194,14 +194,15 @@ function New-GuacMockSeededContext {
                 identifier = 'rec-1'; connectionIdentifier = 'conn-1'; connectionName = 'test-connection'
                 username = 'guacadmin'; remoteHost = '10.0.0.5'
                 startDate = 1767261600000; endDate = 1767263400000
-                duration = 1800; readOnly = $false; sharingProfile = $null
+                active = $false; uuid = [System.Guid]::NewGuid(); attributes = @{}; logs = @{}
+                sharingProfileIdentifier = $null; sharingProfileName = $null
             }
         )
         users = @(
             [ordered]@{
-                username = 'guacadmin'; remoteHost = '10.0.0.5'
+                identifier = 'urec-1'; username = 'guacadmin'; remoteHost = '10.0.0.5'
                 startDate = 1767261600000; endDate = 1767263400000
-                duration = 1800; connectionCount = 1; readWriteCount = 1; readOnlyCount = 0
+                active = $false; uuid = [System.Guid]::NewGuid(); attributes = @{}; logs = @{}
             }
         )
     }

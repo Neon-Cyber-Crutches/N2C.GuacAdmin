@@ -188,12 +188,13 @@ function Convert-GuacDurationToTimeSpan {
 function Convert-GuacHistoryRecord {
     <#
     .SYNOPSIS
-        Converts epoch timestamps in a Guacamole history record to DateTime/TimeSpan.
+        Converts epoch timestamps in a Guacamole history record and computes duration.
 
     .DESCRIPTION
-        Converts startDate and endDate (epoch ms) to [DateTime] UTC and
-        duration (seconds) to [TimeSpan] in APIConnectionRecord and
-        APIUserRecord objects.
+        Converts startDate and endDate (epoch ms) to [DateTime] UTC and computes
+        a duration [TimeSpan] client-side from endDate - startDate (or
+        now - startDate for active sessions). The Guacamole REST API does not
+        return a duration field; it is derived here.
 
         This function is private to the N2C.GuacAdmin module.
     #>
@@ -216,9 +217,30 @@ function Convert-GuacHistoryRecord {
         if ($Record.ContainsKey('endDate') -and $null -ne $Record['endDate']) {
             $Record['endDate'] = Convert-GuacEpochToDateTime -EpochMillis $Record['endDate']
         }
-        if ($Record.ContainsKey('duration') -and $null -ne $Record['duration']) {
-            $Record['duration'] = Convert-GuacDurationToTimeSpan -Seconds $Record['duration']
+
+        # Compute duration client-side (API does not return it)
+        $start = $null
+        $end = $null
+        $active = $false
+        if ($Record.ContainsKey('startDate')) { $start = $Record['startDate'] }
+        if ($Record.ContainsKey('endDate')) { $end = $Record['endDate'] }
+        if ($Record.ContainsKey('active')) { $active = [bool]$Record['active'] }
+
+        if ($null -ne $start) {
+            if ($null -ne $end) {
+                $Record['duration'] = [TimeSpan]($end - $start)
+            }
+            elseif ($active) {
+                $Record['duration'] = [TimeSpan]([DateTime]::UtcNow - $start)
+            }
+            else {
+                $Record['duration'] = $null
+            }
         }
+        else {
+            $Record['duration'] = $null
+        }
+
         return $Record
     }
     else {
@@ -234,13 +256,36 @@ function Convert-GuacHistoryRecord {
                         $prop.Value = Convert-GuacEpochToDateTime -EpochMillis $prop.Value
                     }
                 }
-                'duration' {
-                    if ($null -ne $prop.Value) {
-                        $prop.Value = Convert-GuacDurationToTimeSpan -Seconds $prop.Value
-                    }
-                }
             }
         }
+
+        # Compute duration client-side (API does not return it)
+        $start = $null
+        $end = $null
+        $active = $false
+        foreach ($prop in $Record.PSObject.Properties) {
+            switch ($prop.Name) {
+                'startDate' { $start = $prop.Value }
+                'endDate' { $end = $prop.Value }
+                'active' { $active = [bool]$prop.Value }
+            }
+        }
+
+        if ($null -ne $start) {
+            if ($null -ne $end) {
+                $Record | Add-Member -NotePropertyName 'duration' -NotePropertyValue ([TimeSpan]($end - $start)) -Force
+            }
+            elseif ($active) {
+                $Record | Add-Member -NotePropertyName 'duration' -NotePropertyValue ([TimeSpan]([DateTime]::UtcNow - $start)) -Force
+            }
+            else {
+                $Record | Add-Member -NotePropertyName 'duration' -NotePropertyValue $null -Force
+            }
+        }
+        else {
+            $Record | Add-Member -NotePropertyName 'duration' -NotePropertyValue $null -Force
+        }
+
         return $Record
     }
 }

@@ -55,7 +55,8 @@ Describe 'Get-GuacHistory' {
         $records = @(Get-GuacHistory -Session $session -Type User)
         $records.Count | Should -BeGreaterOrEqual 1
         $records[0].Username | Should -Be 'guacadmin'
-        $records[0].ConnectionCount | Should -Be 1
+        $records[0].Identifier | Should -Not -BeNullOrEmpty
+        $records[0].Uuid | Should -Not -BeNullOrEmpty
     }
 
     It 'passes -Contains and -Order as query parameters' {

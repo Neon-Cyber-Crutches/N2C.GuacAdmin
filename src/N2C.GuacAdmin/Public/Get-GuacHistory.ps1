@@ -8,11 +8,19 @@ function Get-GuacHistory {
         history endpoint (ActivityRecordSetResource.getRecords):
         - -Type Connection: GET .../history/connections
           (APIConnectionRecord: connectionIdentifier, connectionName,
-          username, remoteHost, startDate, endDate, duration,
-          readOnly, activeConnections, sharingProfile)
+          username, remoteHost, startDate, endDate, active, identifier,
+          uuid, attributes, logs, sharingProfileIdentifier,
+          sharingProfileName)
         - -Type User: GET .../history/users
-          (APIUserRecord: username, remoteHost, startDate, endDate,
-          duration, connectionCount, readWriteCount, readOnlyCount)
+          (APIActivityRecord: username, remoteHost, startDate, endDate,
+          active, identifier, uuid, attributes, logs)
+
+        The Guacamole REST API returns time values as Unix epoch milliseconds
+        (startDate, endDate). This cmdlet converts them to [DateTime] UTC.
+        Duration is not returned by the API; it is computed client-side as
+        endDate - startDate for completed sessions, or now - startDate for
+        active sessions (active = true). For sessions that are neither
+        completed nor active, duration is $null.
 
         The -Contains parameter (one or more strings) filters the records so
         that every string occurs somewhere within each returned record (the
@@ -31,8 +39,8 @@ function Get-GuacHistory {
           (getRecords: "contains" and "order" query params)
         - guacamole/src/main/java/org/apache/guacamole/rest/history/APISortPredicate.java
           (order property, "-" descending prefix)
+        - guacamole/src/main/java/org/apache/guacamole/rest/history/APIActivityRecord.java
         - guacamole/src/main/java/org/apache/guacamole/rest/history/APIConnectionRecord.java
-        - guacamole/src/main/java/org/apache/guacamole/rest/history/APIUserRecord.java
 
     .EXAMPLE
         Get-GuacHistory -Type Connection

@@ -27,12 +27,12 @@ Describe 'Get-GuacSharingProfile' {
     It 'lists sharing profiles with Identifier properties' {
         $profiles = @(Get-GuacSharingProfile -Session $session)
         $ids = @($profiles | ForEach-Object { $_.Identifier })
-        $ids | Should -Contain 'readonly'
+        $ids | Should -Contain 'sp-readonly'
     }
 
     It 'gets a single sharing profile by id' {
-        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'readonly'
-        $sh_profile.Identifier | Should -Be 'readonly'
+        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'sp-readonly'
+        $sh_profile.Identifier | Should -Be 'sp-readonly'
         $sh_profile.Name | Should -Be 'read-only'
         $sh_profile.PrimaryConnectionIdentifier | Should -Be 'conn-1'
         $sh_profile.Parameters['guac-readonly'] | Should -Be 'true'
@@ -43,12 +43,12 @@ Describe 'Get-GuacSharingProfile' {
     }
 
     It 'resolves PrimaryConnectionName by default' {
-        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'readonly'
+        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'sp-readonly'
         $sh_profile.PrimaryConnectionName | Should -Be 'test-connection'
     }
 
     It 'skips PrimaryConnectionName resolution when -ResolveConnectionName is false' {
-        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'readonly' -ResolveConnectionName:$false
+        $sh_profile = Get-GuacSharingProfile -Session $session -Id 'sp-readonly' -ResolveConnectionName:$false
         $sh_profile.PSObject.Properties['PrimaryConnectionName'] | Should -Be $null
     }
 }
@@ -88,17 +88,17 @@ Describe 'New-GuacSharingProfile' {
 
 Describe 'Update-GuacSharingProfile' {
     It 'replaces a sharing profile with -Replace' {
-        $updated = Update-GuacSharingProfile -Session $session -Id 'readonly' -Replace @{
+        $updated = Update-GuacSharingProfile -Session $session -Id 'sp-readonly' -Replace @{
             name = 'read-only-v2'
             primaryConnectionIdentifier = 'conn-1'
             parameters = @{ 'guac-readonly' = 'true' }
         }
-        $updated.Identifier | Should -Be 'readonly'
+        $updated.Identifier | Should -Be 'sp-readonly'
         $updated.Name | Should -Be 'read-only-v2'
     }
 
     It 'rejects supplying both -Patch and -Replace' {
-        { Update-GuacSharingProfile -Session $session -Id 'readonly' -Replace @{ name = 'x' } -Patch @{ op = 'remove'; path = '/readonly' } -ErrorAction Stop } | Should -Throw
+        { Update-GuacSharingProfile -Session $session -Id 'sp-readonly' -Replace @{ name = 'x' } -Patch @{ op = 'remove'; path = '/sp-readonly' } -ErrorAction Stop } | Should -Throw
     }
 }
 

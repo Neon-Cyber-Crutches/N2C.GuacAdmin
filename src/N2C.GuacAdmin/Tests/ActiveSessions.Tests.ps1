@@ -30,19 +30,19 @@ Describe 'Get-GuacActiveConnection' {
         $activeConns = @(Get-GuacActiveConnection -Session $session)
         $activeConns.Count | Should -BeGreaterOrEqual 2
         $ids = @($activeConns | ForEach-Object { $_.Identifier })
-        $ids | Should -Contain 'active-1'
-        $ids | Should -Contain 'active-2'
+        $ids | Should -Contain 'da7cb142-d5f5-3683-ad22-98b1a1f132b4'
+        $ids | Should -Contain 'e3f4a5b6-c7d8-9012-efab-345678901234'
     }
 
     It 'gets a single active connection by id' {
-        $activeConn = Get-GuacActiveConnection -Session $session -Id 'active-1'
-        $activeConn.Identifier | Should -Be 'active-1'
+        $activeConn = Get-GuacActiveConnection -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4'
+        $activeConn.Identifier | Should -Be 'da7cb142-d5f5-3683-ad22-98b1a1f132b4'
         $activeConn.ConnectionIdentifier | Should -Be 'conn-1'
         $activeConn.Username | Should -Be 'guacadmin'
     }
 
     It 'converts startDate to [DateTime] UTC' {
-        $activeConn = Get-GuacActiveConnection -Session $session -Id 'active-1'
+        $activeConn = Get-GuacActiveConnection -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4'
         $activeConn.StartDate | Should -BeOfType [DateTime]
         $activeConn.StartDate.Kind | Should -Be 'Utc'
         # Mock server uses epoch 1767261600000 = 2026-01-01 10:00:00 UTC
@@ -56,38 +56,56 @@ Describe 'Get-GuacActiveConnection' {
     }
 
     It 'resolves ConnectionName by default' {
-        $activeConn = Get-GuacActiveConnection -Session $session -Id 'active-1'
+        $activeConn = Get-GuacActiveConnection -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4'
         $activeConn.ConnectionName | Should -Be 'test-connection'
     }
 
     It 'skips ConnectionName resolution when -ResolveConnectionName is false' {
-        $activeConn = Get-GuacActiveConnection -Session $session -Id 'active-1' -ResolveConnectionName:$false
+        $activeConn = Get-GuacActiveConnection -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4' -ResolveConnectionName:$false
         $activeConn.PSObject.Properties['ConnectionName'] | Should -Be $null
     }
 }
 
 Describe 'Get-GuacSharingCredential' {
     It 'gets sharing credentials for an active connection' {
-        $creds = Get-GuacSharingCredential -Session $session -Id 'active-1' -SharingProfile 'readonly'
+        $creds = Get-GuacSharingCredential -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4' -SharingProfile 'sp-readonly'
         $creds | Should -Not -BeNullOrEmpty
-        $creds.username | Should -BeLike 'share-active-1-*'
+        $creds.Key | Should -Not -BeNullOrEmpty
+        $creds.ActiveConnectionId | Should -Be 'da7cb142-d5f5-3683-ad22-98b1a1f132b4'
+        $creds.SharingProfileId | Should -Be 'sp-readonly'
+    }
+
+    It 'includes active connection context in the result' {
+        $creds = Get-GuacSharingCredential -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4' -SharingProfile 'sp-readonly'
+        $creds | Should -Not -BeNullOrEmpty
+        # From active connection
+        $creds.Username | Should -Be 'guacadmin'
+        $creds.RemoteHost | Should -Be '10.0.0.5'
+        # Resolved names
+        $creds.ConnectionName | Should -Be 'test-connection'
+        $creds.SharingProfileName | Should -Be 'read-only'
+        $creds.DataSource | Should -Be 'mysql'
     }
 
     It 'throws when -SharingProfile is not supplied' {
-        { Get-GuacSharingCredential -Session $session -Id 'active-1' -ErrorAction Stop } | Should -Throw
+        { Get-GuacSharingCredential -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4' -ErrorAction Stop } | Should -Throw
+    }
+
+    It 'throws when -Id is not supplied and nothing is piped' {
+        { Get-GuacSharingCredential -Session $session -SharingProfile 'sp-readonly' -ErrorAction Stop } | Should -Throw
     }
 }
 
 Describe 'Stop-GuacActiveConnection' {
     It 'stops an active connection by id' {
-        Get-GuacActiveConnection -Session $session -Id 'active-2' | Should -Not -BeNullOrEmpty
-        Stop-GuacActiveConnection -Session $session -Id 'active-2' -Confirm:$false
-        { Get-GuacActiveConnection -Session $session -Id 'active-2' -ErrorAction Stop } | Should -Throw
+        Get-GuacActiveConnection -Session $session -Id 'e3f4a5b6-c7d8-9012-efab-345678901234' | Should -Not -BeNullOrEmpty
+        Stop-GuacActiveConnection -Session $session -Id 'e3f4a5b6-c7d8-9012-efab-345678901234' -Confirm:$false
+        { Get-GuacActiveConnection -Session $session -Id 'e3f4a5b6-c7d8-9012-efab-345678901234' -ErrorAction Stop } | Should -Throw
     }
 
     It 'stops a piped active connection object' {
-        Get-GuacActiveConnection -Session $session -Id 'active-1' | Stop-GuacActiveConnection -Confirm:$false
-        { Get-GuacActiveConnection -Session $session -Id 'active-1' -ErrorAction Stop } | Should -Throw
+        Get-GuacActiveConnection -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4' | Stop-GuacActiveConnection -Confirm:$false
+        { Get-GuacActiveConnection -Session $session -Id 'da7cb142-d5f5-3683-ad22-98b1a1f132b4' -ErrorAction Stop } | Should -Throw
     }
 
     It 'honors -WhatIf' {

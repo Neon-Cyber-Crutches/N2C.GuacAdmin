@@ -168,7 +168,7 @@ function New-GuacMockSeededContext {
     $Ctx['userGroups']['auditors'] = [ordered]@{ identifier = 'auditors'; disabled = $false; attributes = @{} }
 
     $Ctx['sharingProfiles'] = @{}
-    $Ctx['sharingProfiles']['readonly'] = [ordered]@{
+    $Ctx['sharingProfiles']['sp-readonly'] = [ordered]@{
         name = 'read-only'; primaryConnectionIdentifier = 'conn-1'
         parameters = @{ 'guac-readonly' = 'true' }; attributes = @{}
     }
@@ -208,17 +208,18 @@ function New-GuacMockSeededContext {
     }
 
     # Seed a couple of active connections for testing
+    # Using UUID-style identifiers to match real Guacamole behavior
     $Ctx['activeConnections'] = @{}
-    $Ctx['activeConnections']['active-1'] = [ordered]@{
-        identifier = 'active-1'
+    $Ctx['activeConnections']['da7cb142-d5f5-3683-ad22-98b1a1f132b4'] = [ordered]@{
+        identifier = 'da7cb142-d5f5-3683-ad22-98b1a1f132b4'
         connectionIdentifier = 'conn-1'
         startDate = 1767261600000
         remoteHost = '10.0.0.5'
         username = 'guacadmin'
         connectable = $true
     }
-    $Ctx['activeConnections']['active-2'] = [ordered]@{
-        identifier = 'active-2'
+    $Ctx['activeConnections']['e3f4a5b6-c7d8-9012-efab-345678901234'] = [ordered]@{
+        identifier = 'e3f4a5b6-c7d8-9012-efab-345678901234'
         connectionIdentifier = 'conn-2'
         startDate = 1767263400000
         remoteHost = '192.168.1.10'
@@ -1066,14 +1067,22 @@ while ($listener.IsListening) {
                             continue
                         }
 
-                        # Sharing credentials
+                        # Sharing credentials — returns APIUserCredentials structure
+                        # (guacamole/src/main/java/org/apache/guacamole/rest/activeconnection/APIUserCredentials.java)
+                        # The actual API returns a single 'key' QUERY_PARAMETER field.
                         if ($sub -eq 'sharingCredentials' -and $segments.Count -ge 5 -and $method -eq 'GET') {
                             $sharingProfile = $segments[4]
-                            $creds = [ordered]@{
-                                username = ('share-{0}-{1}' -f ($activeId, $sharingProfile))
-                                password = ('share-pass-' + [System.Guid]::NewGuid().ToString('N'))
+                            $sharingKey = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(('share-{0}-{1}-{2}' -f ($activeId, $sharingProfile, [System.Guid]::NewGuid()))))
+                            $sh_creds = [ordered]@{
+                                expected = @{
+                                    type = 'QUERY_PARAMETER'
+                                    name = 'key'
+                                }
+                                values = @{
+                                    key = $sharingKey
+                                }
                             }
-                            Send-Json -Context $context -Code 200 -Object $creds
+                            Send-Json -Context $context -Code 200 -Object $sh_creds
                             continue
                         }
                     }

@@ -36,7 +36,7 @@
     CmdletsToExport   = @()
     VariablesToExport = @()
     AliasesToExport   = @()
-    FormatsToProcess = @()
+    FormatsToProcess = @('N2C.GuacAdmin.Format.ps1xml')
     DscResourcesToExport = @()
 
     # Private data to pass to the module. Contains the PSData metadata hashtable.

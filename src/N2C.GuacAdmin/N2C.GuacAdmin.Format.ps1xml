@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Configuration>
+    <ViewDefinitions>
+        <View>
+            <Name>N2C.GuacAdmin.GuacSession</Name>
+            <ViewSelectedBy>
+                <TypeName>N2C_GuacAdmin_GuacSession</TypeName>
+            </ViewSelectedBy>
+            <ListControl>
+                <ListEntries>
+                    <ListEntry>
+                        <ListItems>
+                            <ListItem>
+                                <PropertyName>Server</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <Label>Token</Label>
+                                <ScriptBlock>
+                                    $t = $_.Token
+                                    if ($t -and $t.Length -gt 8) {
+                                        $t.Substring(0, 4) + ('*' * ($t.Length - 8)) + $t.Substring($t.Length - 4)
+                                    } else {
+                                        '********'
+                                    }
+                                </ScriptBlock>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>DataSource</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>Username</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>AvailableDataSources</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>CertificateThumbprint</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>Certificate</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>Proxy</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>ProxyCredential</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>NoProxy</PropertyName>
+                            </ListItem>
+                            <ListItem>
+                                <PropertyName>TimeoutSec</PropertyName>
+                            </ListItem>
+                        </ListItems>
+                    </ListEntry>
+                </ListEntries>
+            </ListControl>
+        </View>
+    </ViewDefinitions>
+</Configuration>

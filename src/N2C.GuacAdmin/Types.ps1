@@ -39,7 +39,7 @@ class N2C_GuacAdmin_GuacSession {
     [string]ToString() {
         $masked = '****'
         if ($this.Token -and $this.Token.Length -gt 8) {
-            $masked = $this.Token.Substring(0, 4) + '...' + $this.Token.Substring($this.Token.Length - 4)
+            $masked = $this.Token.Substring(0, 4) + ('*' * ($this.Token.Length - 8)) + $this.Token.Substring($this.Token.Length - 4)
         }
         return ("N2C.GuacAdmin.GuacSession: Server={0} User={1} DataSource={2} Token={3}" -f $this.Server, $this.Username, $this.DataSource, $masked)
     }

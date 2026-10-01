@@ -88,7 +88,7 @@ Describe 'ConvertTo-GuacMaskedSecret' {
     }
 
     It 'keeps the first and last 4 characters of long values' {
-        ConvertTo-GuacMaskedSecret -Value 'averylongtokenvalue1234567890' | Should -Be 'aver...7890'
+        ConvertTo-GuacMaskedSecret -Value '3E6F9F7EDD15D99EB7CF28AFE6EED' | Should -Be '3E6F*********************6EED'
     }
 }
 

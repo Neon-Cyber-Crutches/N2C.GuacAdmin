@@ -27,5 +27,10 @@ function ConvertTo-GuacMaskedSecret {
         return '****'
     }
 
-    return $Value.Substring(0, 4) + '...' + $Value.Substring($Value.Length - 4)
+    # Mask the central portion with asterisks, keeping the same total length.
+    # First and last 4 characters remain visible.
+    $first = $Value.Substring(0, 4)
+    $last = $Value.Substring($Value.Length - 4)
+    $maskedLength = $Value.Length - 8
+    return $first + ('*' * $maskedLength) + $last
 }

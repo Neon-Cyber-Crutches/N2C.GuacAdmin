@@ -1,22 +1,44 @@
+<!-- The structure of this README.md inspired and powered by https://github.com/othneildrew/Best-README-Template -->
+<a id="readme-top"></a>
+
 # N2C.GuacAdmin
 
-PowerShell module for administering a deployed **Apache Guacamole 1.6.x** instance: its configuration (users, connections, connection groups, sharing profiles, permissions, history, schemas, extensions) and its runtime state (active sessions, tunnels).
+[![Contributors][contributors-shield]][contributors-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![Apache 2.0 License][license-shield]][license-url]
 
-Targets the Guacamole **REST API** and (in later phases) the **Guacamole protocol** over WebSocket tunnels.
+<!-- PROJECT LOGO -->
+<div align="center">
+  <a href="https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin">
+    <img src="assets/images/N2C.GuacAdmin_1254x1254.png" alt="Logo" width="1280" height="1280">
+  </a>
+  <p align="center">
+    N2C.GuacAdmin is a PowerShell module for administering a deployed **Apache Guacamole 1.6.x** instance: its configuration (users, connections, connection groups, sharing profiles, permissions, history, schemas, extensions) and its runtime state (active sessions, tunnels).
+    <br />
+    <br />
+    <a href="https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
+    &middot;
+    <a href="https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
+  </p>
+</div>
 
-- **Compatible:** Windows PowerShell 5.1 and PowerShell 7.x (Windows / Linux / macOS)
-- **Phase 1:** authentication & session lifecycle ✅
-- **Phase 2:** entity CRUD (connections, users, groups, sharing profiles, permissions) ✅
-- **Phase 3:** active sessions, tunnels, languages, patches, extensions ✅
-- **Phase 4 (next):** protocol client (interactive WebSocket sessions)
-- Roadmap: [TODO.md](TODO.md) · Design & architecture: [AGENTS.md](../../AGENTS.md)
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+N2C.GuacAdmin targets the Guacamole **REST API** and the **Guacamole protocol** over WebSocket tunnels.
+
+- Compatible: Windows PowerShell 5.1 and PowerShell 7.x (Windows / Linux / macOS) ✅
+- Authentication & session lifecycle ✅
+- Entity CRUD (connections, users, groups, sharing profiles, permissions) ✅
+- Active sessions, tunnels, languages, patches, extensions ✅
+- Protocol client (interactive WebSocket sessions) ✅
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `N2C.GuacAdmin.psd1` | Module manifest |
-| `N2C.GuacAdmin.psm1` | Loader (no script-scope globals) |
+| `N2C.GuacAdmin.psm1` | Loader |
 | `Types.ps1` | `[N2C_GuacAdmin_GuacSession]`, `[N2C_GuacAdmin_GuacRestException]` |
 | `Public/` | Exported cmdlets |
 | `Private/` | Transport (`Invoke-GuacRest`) and helpers |
@@ -124,5 +146,13 @@ pwsh ./run-lint.ps1 -ShowInfo   # also report Info-level findings
 - **Secrets.** Passwords/TOTP are `SecureString`/`PSCredential` only. The token is
   masked in all string representations.
 
-See [AGENTS.md](../../AGENTS.md) §3–§6 for the full technical facts and engineering
-standards, and [TODO.md](TODO.md) for the phase-by-phase roadmap.
+<!-- MARKDOWN LINKS & IMAGES -->
+<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
+[contributors-shield]: https://img.shields.io/github/contributors/Neon-Cyber-Crutches/N2C.GuacAdmin.svg?style=for-the-badge
+[contributors-url]: https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin/graphs/contributors
+[stars-shield]: https://img.shields.io/github/stars/Neon-Cyber-Crutches/N2C.GuacAdmin.svg?style=for-the-badge
+[stars-url]: https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin/stargazers
+[issues-shield]: https://img.shields.io/github/issues/Neon-Cyber-Crutches/N2C.GuacAdmin.svg?style=for-the-badge
+[issues-url]: https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin/issues
+[license-shield]: https://img.shields.io/github/license/Neon-Cyber-Crutches/N2C.GuacAdmin.svg?style=for-the-badge
+[license-url]: https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin/blob/master/LICENSE

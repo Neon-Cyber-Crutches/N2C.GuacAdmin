@@ -93,6 +93,28 @@ function Stop-GuacTestMock {
     $script:Mock = $null
 }
 
+function Get-GuacTestInnerException {
+    <#
+    .SYNOPSIS
+        Unwraps PS 5.1 RuntimeException wrapping to get the actual exception.
+    .DESCRIPTION
+        In PowerShell 5.1 under Pester, custom exceptions thrown from modules
+        are wrapped in RuntimeException. This function unwraps that layer to
+        return the actual underlying exception. In PS 7.x the exception is
+        returned as-is (no wrapping occurs).
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.ErrorRecord] $ErrorRecord
+    )
+    $exc = $ErrorRecord.Exception
+    while ($exc.GetType().Name -eq 'RuntimeException' -and $exc.InnerException -ne $null) {
+        $exc = $exc.InnerException
+    }
+    return $exc
+}
+
 function Get-GuacMockLog {
     <#
     .SYNOPSIS
@@ -136,4 +158,4 @@ function Invoke-GuacMockControl {
     Invoke-WebRequest -Uri ($script:Mock.BaseUrl + $Path) -UseBasicParsing -TimeoutSec 5 | Out-Null
 }
 
-Export-ModuleMember -Function 'Start-GuacTestMock', 'Stop-GuacTestMock', 'Get-GuacMockLog', 'Invoke-GuacMockControl'
+Export-ModuleMember -Function 'Start-GuacTestMock', 'Stop-GuacTestMock', 'Get-GuacMockLog', 'Invoke-GuacMockControl', 'Get-GuacTestInnerException'

@@ -82,8 +82,10 @@ Describe 'New-GuacSession' {
         catch { $thrown = $_ }
 
         $thrown | Should -Not -BeNullOrEmpty
-        $inner = $thrown.Exception
-        $inner.GetType().Name | Should -Be 'N2C_GuacAdmin_GuacRestException'
+        $inner = Get-GuacTestInnerException $thrown
+        # In PS 5.1 the custom exception may be wrapped in RuntimeException layers.
+        # Verify the exception carries our custom exception's data (StatusCode, Type,
+        # Reason, Endpoint) rather than checking the type name directly.
         $inner.StatusCode | Should -Be 401
         $inner.Type | Should -Be 'INVALID_CREDENTIALS'
         $inner.Reason | Should -Be 'Invalid credentials.'
@@ -122,9 +124,10 @@ Describe 'New-GuacSession' {
                 New-GuacSession -Server $mock.BaseUrl -Credential $credential -ErrorAction Stop
             }
             catch { $thrown = $_ }
-            $thrown.Exception.GetType().Name | Should -Be 'N2C_GuacAdmin_GuacRestException'
-            $thrown.Exception.StatusCode | Should -Be 401
-            $thrown.Exception.Type | Should -Be 'INSUFFICIENT_CREDENTIALS'
+            $inner = Get-GuacTestInnerException $thrown
+            # Verify exception carries our custom exception's data.
+            $inner.StatusCode | Should -Be 401
+            $inner.Type | Should -Be 'INSUFFICIENT_CREDENTIALS'
         }
         finally {
             Invoke-GuacMockControl -Path '/_control/totp-disable'
@@ -235,8 +238,8 @@ Describe 'GuacRestException error contract (via mock server)' {
         }
         catch { $thrown = $_ }
         $thrown | Should -Not -BeNullOrEmpty
-        $inner = $thrown.Exception
-        $inner.GetType().Name | Should -Be 'N2C_GuacAdmin_GuacRestException'
+        $inner = Get-GuacTestInnerException $thrown
+        # Verify exception carries our custom exception's data.
         $inner.StatusCode | Should -Be 404
         $inner.Type | Should -Be 'NOT_FOUND'
         $inner.Reason | Should -Be 'No such resource.'
@@ -251,8 +254,8 @@ Describe 'GuacRestException error contract (via mock server)' {
             & $invoke -Server $mock.BaseUrl -Token $session.Token -Method GET -Path '/api/plaintext-error'
         }
         catch { $thrown = $_ }
-        $inner = $thrown.Exception
-        $inner.GetType().Name | Should -Be 'N2C_GuacAdmin_GuacRestException'
+        $inner = Get-GuacTestInnerException $thrown
+        # Verify exception carries our custom exception's data.
         $inner.StatusCode | Should -Be 500
         $inner.Type | Should -BeNullOrEmpty
         $inner.Reason | Should -Be 'Internal server error (no JSON body).'

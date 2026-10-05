@@ -11,6 +11,7 @@
 RequiredModules:
   Pester: '5.7.1'
   PSScriptAnalyzer: '1.25.0'
+  Microsoft.PowerShell.PSResourceGet: '1.2.0'
 
 # Paths (relative to repository root)
 ModuleSource: src/N2C.GuacAdmin
@@ -39,6 +40,27 @@ Lint:
     - Warning
     - Error
 
+# Publish configuration
+Publish:
+  Repository: PSGallery
+  # API key is resolved in this priority order:
+  #   1. -ApiKey parameter (CLI override)
+  #   2. .psgallerykey file in repo root (local development)
+  #   3. PSGALLERY_API_KEY environment variable (CI)
+  ApiKeyFile: .psgallerykey
+
+# Pack configuration
+Pack:
+  ArtifactName: N2C.GuacAdmin
+  # Files and directories (relative to ModuleSource) to include in the release artifact.
+  # All other files (tests, dev tooling, docs) are excluded.
+  Include:
+    - N2C.GuacAdmin.psd1
+    - N2C.GuacAdmin.psm1
+    - N2C.GuacAdmin.Format.ps1xml
+    - Types.ps1
+    - Public
+    - Private
 # Build workflow definitions (Invoke-Build task sequences)
 BuildWorkflow:
   '.':
@@ -49,3 +71,11 @@ BuildWorkflow:
     - test_integration
   lint:
     - lint_module
+  publish_dry_run:
+    - test
+    - lint
+    - publish_validate
+  publish:
+    - publish_dry_run
+    - pack
+    - publish_module

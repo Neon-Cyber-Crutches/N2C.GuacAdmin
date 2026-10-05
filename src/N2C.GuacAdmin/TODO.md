@@ -179,5 +179,13 @@ operations and allows independent evolution of display and filtering features.
 - [ ] PSScriptAnalyzer with a strict ruleset (CI); fix all findings.
 - [ ] GitHub Actions: PSScriptAnalyzer + Pester (unit + integration) + module publish dry-run.
 - [ ] Complete comment-based help + `Examples` on every public cmdlet.
-- [ ] Signing/publishing; finalize `ReleaseNotes`, `Tags`, `Author`, `ProjectUri`.
+- [ ] Signing; finalize `ReleaseNotes`, `Tags`, `Author`, `ProjectUri`.
 - [ ] Optional: real-instance integration test gated by an env var (`GUAC_ADMIN_INTEGRATION=1` + `-Server`/`-Credential`).
+
+### Publishing (complete)
+- [x] `build.ps1` publishing tasks: `publish_validate` (Validate-Module), `publish_dry_run` (test + lint + validate), `publish` (test + lint + validate + Publish-Module).
+- [x] `build.ps1 version_bump` task for automated version increment (major/minor/patch).
+- [x] API key resolution: `-ApiKey` parameter → `.psgallerykey` file → `PSGALLERY_API_KEY` environment variable.
+- [x] `.github/workflows/publish.yml` GitHub Actions workflow triggered on release published.
+- [x] `.psgallerykey` added to `.gitignore`.
+- [x] README updated with build and publishing instructions.

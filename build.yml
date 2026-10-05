@@ -79,3 +79,5 @@ BuildWorkflow:
     - publish_dry_run
     - pack
     - publish_module
+  publish_ghp:
+    - publish_validate

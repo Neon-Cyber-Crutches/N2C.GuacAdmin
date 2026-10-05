@@ -1,0 +1,21 @@
+name: Publish to GitHub Packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Publish module to GitHub Packages
+        run: pwsh ./build.ps1 publish_ghp
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

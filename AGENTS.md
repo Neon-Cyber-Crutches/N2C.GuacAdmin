@@ -18,6 +18,9 @@ The workspace contains **research material** (cloned/downloaded during design) p
 
 | Path | What it is |
 |---|---|
+| [`build.yml`](build.yml) | Build configuration (dependencies, test paths, lint settings, workflow definitions) parsed by `build.ps1` via PowerShell-Yaml |
+| [`build.ps1`](build.ps1) | Bootstrap & build script: downloads dependencies to `output/RequiredModules`, overrides `PSModulePath` to prefer those versions, runs Pester tests and PSScriptAnalyzer lint via named tasks (`noop`, `test`, `test_unit`, `test_integration`, `lint`) |
+| [`output/`](output/) | Build artifacts and bootstrapped build dependencies (`output/RequiredModules`). Gitignored. |
 | [`ANALYSIS.md`](ANALYSIS.md) | Research findings: how Guacamole sessions actually work, full problem catalog of the legacy module, architecture recommendations |
 | [`ANALYSIS/guacamole-client-1.6.0/`](ANALYSIS/guacamole-client-1.6.0/) | **Official** Apache Guacamole 1.6.0 source (authoritative reference for REST endpoints and the protocol). Key files: `guacamole/src/main/java/org/apache/guacamole/rest/**` (REST), `guacamole/src/main/java/org/apache/guacamole/tunnel/**` (tunnel params), `guacamole-common/src/main/java/org/apache/guacamole/protocol/ConfiguredGuacamoleSocket.java` (handshake), `guacamole-ext/src/main/resources/org/apache/guacamole/protocols/*.json` (protocol schemas) |
 | [`ANALYSIS/guacamole-rest-api-documentation/`](ANALYSIS/guacamole-rest-api-documentation/README.md) | Unofficial REST API docs (ridvanaltun, based on 1.1.0) — useful as a starting sketch, **must be verified against 1.6.0 source** before relying on it |
@@ -51,11 +54,35 @@ directory** (for example `Remove-Item -Recurse -Force
 ANALYSIS/guacamole-powershell/.git`) so that nested repositories do not
 interfere with the outer repository's tooling.
 
-### Module layout (Phase 4, current)
+### Build system (Phase 5, current)
 
-[`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) follows the standard PowerShell module layout: `N2C.GuacAdmin.psd1` (manifest; `ScriptsToProcess = @('Types.ps1')` defines the classes in caller-visible scope), `N2C.GuacAdmin.psm1` (loader), `Types.ps1`, `Public/`, `Private/`, and `Tests/` (Pester v5 + a self-contained mock Guacamole server, `Tests/GuacMockServer.ps1`, so integration tests run with no live instance). Run the suite with `src/N2C.GuacAdmin/run-tests.ps1` (`-IncludeIntegration` adds the mock-server session-lifecycle tests).
+The project uses a custom build system based on the [Sampler](https://github.com/PowerShellOrg/Sampler) pattern (simplified). All build configuration lives in [`build.yml`](build.yml), parsed by [`build.ps1`](build.ps1) via the [powershell-yaml](https://github.com/adamdrake/powershell-yaml) module.
 
-Phases 1-4 are complete (150 tests green, lint clean). Phase 5 (hardening & release) is next.
+**Dependency management:** `build.ps1` downloads all build dependencies to `output/RequiredModules/` and prepends that path to `$PSModulePath`, so the build always uses the pinned dependency versions regardless of what is installed locally. This ensures reproducible builds.
+
+**Build tasks (via `build.ps1`):**
+- `noop` — bootstrap dependencies only, run no tasks (useful for testing the bootstrap)
+- `test_unit` — run unit tests only (Pester)
+- `test_integration` — run integration tests only (Pester + mock server)
+- `test` — run unit + integration tests
+- `lint` — run PSScriptAnalyzer lint
+- `.` (default) — run the default workflow defined in `build.yml` (currently `test` + `lint`)
+
+**Usage:**
+```powershell
+pwsh ./build.ps1              # default workflow (test + lint)
+pwsh ./build.ps1 test         # unit + integration tests
+pwsh ./build.ps1 lint         # PSScriptAnalyzer only
+pwsh ./build.ps1 noop         # bootstrap only
+```
+
+The `run-tests.ps1` and `run-lint.ps1` scripts in the module directory remain as standalone runners for quick iteration; `build.ps1` wraps them with dependency management.
+
+### Module layout
+
+[`src/N2C.GuacAdmin/`](src/N2C.GuacAdmin/) follows the standard PowerShell module layout: `N2C.GuacAdmin.psd1` (manifest; `ScriptsToProcess = @('Types.ps1')` defines the classes in caller-visible scope), `N2C.GuacAdmin.psm1` (loader), `Types.ps1`, `Public/`, `Private/`, and `Tests/` (Pester v5 + a self-contained mock Guacamole server, `Tests/GuacMockServer.ps1`, so integration tests run with no live instance).
+
+Phases 1-4 are complete (150 tests green, lint clean). Phase 5 (hardening & release) is in progress — the build system is the current focus.
 
 ## 3. Critical technical facts (do not rediscover, do not contradict)
 

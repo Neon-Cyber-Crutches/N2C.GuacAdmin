@@ -442,8 +442,9 @@ function Invoke-PackModule {
 
     Write-Host "Creating $zipName" -ForegroundColor White
 
-    # Create a temporary staging directory for the release artifact
-    $stagingDir = Join-Path -Path $env:TEMP -ChildPath "N2C.GuacAdmin-pack-$(Get-Random)"
+    # Create a temporary staging directory for the release artifact (cross-platform)
+    $tempRoot = [System.IO.Path]::GetTempPath()
+    $stagingDir = Join-Path -Path $tempRoot -ChildPath "N2C.GuacAdmin-pack-$(Get-Random)"
     New-Item -Path $stagingDir -ItemType Directory -Force | Out-Null
 
     try
@@ -570,8 +571,9 @@ function Invoke-PublishGitHubPackages {
     $nugetFeed = "https://nuget.pkg.github.com/$ghOwner/index.json"
     Write-Host "NuGet feed: $nugetFeed" -ForegroundColor DarkGreen
 
-    # Create a temporary directory for NuGet packaging
-    $tempDir = Join-Path -Path $env:TEMP -ChildPath "N2C.GuacAdmin-nuget-$(Get-Random)"
+    # Create a temporary directory for NuGet packaging (cross-platform)
+    $tempRoot = [System.IO.Path]::GetTempPath()
+    $tempDir = Join-Path -Path $tempRoot -ChildPath "N2C.GuacAdmin-nuget-$(Get-Random)"
     New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
 
     try

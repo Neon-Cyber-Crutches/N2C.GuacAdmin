@@ -552,7 +552,7 @@ function Invoke-PublishGitHubPackages {
     $manifest = Import-PowerShellDataFile -Path $manifestPath
     $version = $manifest.ModuleVersion
     $description = $manifest.Description
-    $authors = $manifest.Authors -join ', '
+    $authors = $manifest.Author
     $projectUri = $manifest.PrivateData.PSData.ProjectUri
 
     Write-Host "Module: N2C.GuacAdmin v$version" -ForegroundColor White

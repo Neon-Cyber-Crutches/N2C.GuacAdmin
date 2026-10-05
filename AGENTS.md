@@ -19,8 +19,8 @@ The workspace contains **research material** (cloned/downloaded during design) p
 | Path | What it is |
 |---|---|
 | [`build.yml`](build.yml) | Build configuration (dependencies, test paths, lint settings, workflow definitions) parsed by `build.ps1` via PowerShell-Yaml |
-| [`build.ps1`](build.ps1) | Bootstrap & build script: downloads dependencies to `output/RequiredModules`, overrides `PSModulePath` to prefer those versions, runs Pester tests and PSScriptAnalyzer lint via named tasks (`noop`, `test`, `test_unit`, `test_integration`, `lint`, `publish_validate`, `publish_dry_run`, `publish`, `version_bump`) |
-| [`.github/workflows/publish.yml`](.github/workflows/publish.yml) | GitHub Actions workflow: publishes module to PSGallery on release (uses `PSGALLERY_API_KEY` secret) |
+| [`build.ps1`](build.ps1) | Bootstrap & build script: downloads dependencies to `output/RequiredModules`, overrides `PSModulePath` to prefer those versions, runs Pester tests and PSScriptAnalyzer lint via named tasks (`noop`, `test`, `test_unit`, `test_integration`, `lint`, `publish_validate`, `publish_dry_run`, `publish`, `publish_ghp`, `version_bump`) |
+| [`.github/workflows/publish.yml`](.github/workflows/publish.yml) | GitHub Actions workflow: publishes module to PSGallery and GitHub Packages on release (uses `PSGALLERY_API_KEY` and `GITHUB_TOKEN` secrets) |
 | [`.psgallerykey`](.psgallerykey) | PSGallery API key for local publishing (gitignored; see `.psgallerykey.example` for template) |
 | [`output/`](output/) | Build artifacts and bootstrapped build dependencies (`output/RequiredModules`). Gitignored. |
 | [`ANALYSIS.md`](ANALYSIS.md) | Research findings: how Guacamole sessions actually work, full problem catalog of the legacy module, architecture recommendations |
@@ -71,6 +71,7 @@ The project uses a custom build system based on the [Sampler](https://github.com
 - `publish_validate` — validate module manifest and structure for PSGallery publishing
 - `publish_dry_run` — test + lint + publish_validate (no actual publish)
 - `publish` — full publish pipeline: test + lint + validate + Publish-Module to PSGallery
+- `publish_ghp` — validate module and publish to GitHub Packages (NuGet protocol, requires `GITHUB_TOKEN` env var)
 - `version_bump` — bump module version in manifest (requires `-BumpType major|minor|patch`)
 - `.` (default) — run the default workflow defined in `build.yml` (currently `test` + `lint`)
 

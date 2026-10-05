@@ -530,6 +530,116 @@ function Invoke-PublishModule {
     Write-Host "Module published successfully to $repository" -ForegroundColor Green
 }
 
+# Helper: publish module to GitHub Packages (NuGet protocol)
+# GitHub Packages for PowerShell uses NuGet feeds. The module is packaged as a .nupkg
+# and pushed to the repository's NuGet feed using the GITHUB_TOKEN.
+function Invoke-PublishGitHubPackages {
+    Write-Host "" -ForegroundColor Cyan
+    Write-Host "Publishing module to GitHub Packages" -ForegroundColor Cyan
+    Write-Host "" -ForegroundColor Cyan
+
+    $modulePath = Join-Path -Path $repoRoot -ChildPath $buildConfig.ModuleSource
+    $ghToken = $env:GITHUB_TOKEN
+
+    if (-not $ghToken)
+    {
+        throw "GITHUB_TOKEN environment variable not set. Required for GitHub Packages publishing."
+    }
+
+    # Import manifest for version and metadata
+    $manifestPath = Join-Path -Path $modulePath -ChildPath 'N2C.GuacAdmin.psd1'
+    $manifest = Import-PowerShellDataFile -Path $manifestPath
+    $version = $manifest.ModuleVersion
+    $description = $manifest.Description
+    $authors = $manifest.Authors -join ', '
+    $projectUri = $manifest.PrivateData.PSData.ProjectUri
+
+    Write-Host "Module: N2C.GuacAdmin v$version" -ForegroundColor White
+    Write-Host "GitHub Packages (NuGet feed)" -ForegroundColor White
+
+    # Get the GitHub repository owner and name from the GITHUB_REPOSITORY env var (CI)
+    # or default to the known values
+    $ghRepo = $env:GITHUB_REPOSITORY
+    if (-not $ghRepo)
+    {
+        $ghRepo = 'Neon-Cyber-Crutches/N2C.GuacAdmin'
+    }
+    $ghOwner = ($ghRepo -split '/')[0]
+    $ghRepoName = ($ghRepo -split '/')[1]
+
+    $nugetFeed = "https://nuget.pkg.github.com/$ghOwner/index.json"
+    Write-Host "NuGet feed: $nugetFeed" -ForegroundColor DarkGreen
+
+    # Create a temporary directory for NuGet packaging
+    $tempDir = Join-Path -Path $env:TEMP -ChildPath "N2C.GuacAdmin-nuget-$(Get-Random)"
+    New-Item -Path $tempDir -ItemType Directory -Force | Out-Null
+
+    try
+    {
+        # Create a .nuspec file
+        $nuspecPath = Join-Path -Path $tempDir -ChildPath 'N2C.GuacAdmin.nuspec'
+        $nuspecContent = @"
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>N2C.GuacAdmin</id>
+    <version>$version</version>
+    <title>N2C.GuacAdmin</title>
+    <authors>$authors</authors>
+    <description>$description</description>
+    <projectUrl>$projectUri</projectUrl>
+    <license type="expression">MIT</license>
+    <tags>guacamole;remote-desktop;ssh;rdp;vnc;admin;apache</tags>
+  </metadata>
+  <files>
+    <file src="$modulePath/N2C.GuacAdmin.psd1" target="tools" />
+    <file src="$modulePath/N2C.GuacAdmin.psm1" target="tools" />
+    <file src="$modulePath/N2C.GuacAdmin.Format.ps1xml" target="tools" />
+    <file src="$modulePath/Types.ps1" target="tools" />
+    <file src="$modulePath/Public/**/*" target="tools/Public" />
+    <file src="$modulePath/Private/**/*" target="tools/Private" />
+  </files>
+</package>
+"@
+        Set-Content -Path $nuspecPath -Value $nuspecContent -Encoding UTF8
+
+        # Use dotnet to pack and push (available on GitHub Actions runners)
+        Write-Host "Creating NuGet package..." -ForegroundColor White
+
+        # Add GitHub Packages as a NuGet source
+        & dotnet nuget add source $nugetFeed --name github-packages --username "$ghOwner" --password "$ghToken" --store-password-in-clear-text 2>&1 | Out-Null
+
+        # Pack the module
+        $nupkgPath = Join-Path -Path $tempDir -ChildPath "N2C.GuacAdmin.$version.nupkg"
+        & dotnet pack $nuspecPath -o $tempDir 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+
+        # Find the generated nupkg
+        $generatedNupkg = Get-ChildItem -Path $tempDir -Filter "*.nupkg" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $generatedNupkg)
+        {
+            throw "NuGet package creation failed - no .nupkg file found"
+        }
+
+        Write-Host "Package created: $($generatedNupkg.Name)" -ForegroundColor DarkGreen
+
+        # Push to GitHub Packages
+        Write-Host "Pushing to GitHub Packages..." -ForegroundColor White
+        & dotnet nuget push $generatedNupkg.FullName --source github-packages --api-key $ghToken --no-symbols true 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+
+        Write-Host "" -ForegroundColor Green
+        Write-Host "Module published successfully to GitHub Packages" -ForegroundColor Green
+        Write-Host "Package: N2C.GuacAdmin v$version" -ForegroundColor Green
+        Write-Host "URL: https://github.com/orgs/$ghOwner/packages or https://github.com/$ghOwner/packages" -ForegroundColor DarkGreen
+    }
+    finally
+    {
+        if (Test-Path -Path $tempDir)
+        {
+            Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 # Helper: bump module version
 function Invoke-VersionBump {
     if (-not $BumpType)
@@ -649,6 +759,9 @@ foreach ($taskName in $Tasks)
             Invoke-PublishValidate
             Invoke-PackModule
             Invoke-PublishModule
+        }
+        'publish_ghp' {
+            Invoke-PublishGitHubPackages
         }
         'version_bump' {
             Invoke-VersionBump

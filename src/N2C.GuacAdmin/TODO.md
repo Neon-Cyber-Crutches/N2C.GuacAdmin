@@ -2,8 +2,9 @@
 
 > Tracking file for the PowerShell module under `src/N2C.GuacAdmin/`.
 > Architecture and "do not rediscover" facts live in [`../../AGENTS.md`](../../AGENTS.md) — read that first.
-> Run the full suite: `./run-tests.ps1` (add `-IncludeIntegration` for the mock-server session tests).
-> Lint gate: `./run-lint.ps1` (settings: `PSScriptAnalyzerSettings.psd1`).
+> Run the full suite: `./build.ps1` (runs default workflow: test + lint).
+> Individual tasks: `./build.ps1 test`, `./build.ps1 lint`, `./build.ps1 test_unit`, `./build.ps1 test_integration`, `./build.ps1 noop`.
+> Standalone runners still available: `./run-tests.ps1`, `./run-lint.ps1`.
 
 Status legend: `[x]` done · `[ ]` to do · `[-]` in progress
 
@@ -167,6 +168,14 @@ operations and allows independent evolution of display and filtering features.
 - Lint clean (PSScriptAnalyzer, no findings)
 
 ## Phase 5 — Hardening & release
+
+### Build system (complete)
+- [x] `build.ps1` bootstrap script: downloads build dependencies (`powershell-yaml`, `Pester`, `PSScriptAnalyzer`, `InvokeBuild`) to `output/RequiredModules`, prepends that path to `PSModulePath` to override conflicting local versions, loads `build.yml` configuration via `ConvertFrom-Yaml`, and runs named build tasks.
+- [x] `build.yml` configuration: declares build dependencies, module source path, test file lists (unit/integration), lint settings, and workflow definitions.
+- [x] Build tasks: `noop` (bootstrap only), `test_unit` (Pester unit tests), `test_integration` (Pester integration tests with mock server), `test` (unit + integration), `lint` (PSScriptAnalyzer via `run-lint.ps1`), and the default `.` workflow (test + lint).
+- [x] Verified with PowerShell 7.x (primary); standalone `run-tests.ps1` and `run-lint.ps1` remain for quick iteration.
+
+### Remaining
 - [ ] PSScriptAnalyzer with a strict ruleset (CI); fix all findings.
 - [ ] GitHub Actions: PSScriptAnalyzer + Pester (unit + integration) + module publish dry-run.
 - [ ] Complete comment-based help + `Examples` on every public cmdlet.

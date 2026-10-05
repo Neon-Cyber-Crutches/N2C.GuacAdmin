@@ -109,7 +109,7 @@ function Get-GuacTestInnerException {
         [System.Management.Automation.ErrorRecord] $ErrorRecord
     )
     $exc = $ErrorRecord.Exception
-    while ($exc.GetType().Name -eq 'RuntimeException' -and $exc.InnerException -ne $null) {
+    while ($exc.GetType().Name -eq 'RuntimeException' -and $null -ne $exc.InnerException) {
         $exc = $exc.InnerException
     }
     return $exc

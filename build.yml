@@ -1,0 +1,51 @@
+---
+# N2C.GuacAdmin build configuration
+# Parsed by build.ps1 using the powershell-yaml module.
+
+# Build dependencies saved to output/RequiredModules to avoid
+# conflicts with locally installed module versions.
+#
+# NOTE: build.ps1 also bootstraps its own internal dependencies before loading
+# this file (powershell-yaml for YAML parsing, InvokeBuild as the task runner).
+# Those are defined in build.ps1 itself and cannot be listed here.
+RequiredModules:
+  Pester: '5.7.1'
+  PSScriptAnalyzer: '1.25.0'
+
+# Paths (relative to repository root)
+ModuleSource: src/N2C.GuacAdmin
+
+# Test configuration
+Tests:
+  UnitFiles:
+    - src/N2C.GuacAdmin/Tests/Helpers.Tests.ps1
+  IntegrationFiles:
+    - src/N2C.GuacAdmin/Tests/ActiveSessions.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/ConnectionGroups.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/Connections.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/DataSource.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/HistorySchema.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/Permissions.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/SessionLifecycle.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/SharingProfiles.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/UserGroups.Tests.ps1
+    - src/N2C.GuacAdmin/Tests/Users.Tests.ps1
+  Verbosity: Detailed
+
+# Lint configuration
+Lint:
+  SettingsFile: src/N2C.GuacAdmin/PSScriptAnalyzerSettings.psd1
+  Severity:
+    - Warning
+    - Error
+
+# Build workflow definitions (Invoke-Build task sequences)
+BuildWorkflow:
+  '.':
+    - test
+    - lint
+  test:
+    - test_unit
+    - test_integration
+  lint:
+    - lint_module

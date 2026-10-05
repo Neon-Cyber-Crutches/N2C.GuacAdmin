@@ -133,6 +133,38 @@ pwsh ./run-lint.ps1
 pwsh ./run-lint.ps1 -ShowInfo   # also report Info-level findings
 ```
 
+## Building & publishing
+
+The project uses a build system driven by [`build.yml`](build.yml) and executed by [`build.ps1`](build.ps1):
+
+```powershell
+pwsh ./build.ps1                    # default: test + lint
+pwsh ./build.ps1 test               # unit + integration tests
+pwsh ./build.ps1 lint               # PSScriptAnalyzer only
+pwsh ./build.ps1 publish_validate   # validate module for PSGallery
+pwsh ./build.ps1 publish_dry_run    # test + lint + publish_validate (no actual publish)
+pwsh ./build.ps1 publish            # full publish: test + lint + validate + Publish-Module
+pwsh ./build.ps1 version_bump -BumpType patch   # bump version (major/minor/patch)
+```
+
+### Local publishing
+
+1. Create a file `.psgallerykey` in the repository root containing your PSGallery API key (this file is gitignored).
+2. Run the publish workflow:
+
+```powershell
+pwsh ./build.ps1 publish
+```
+
+Alternatively, pass the API key directly: `pwsh ./build.ps1 publish -ApiKey <key>`.
+
+### CI publishing (GitHub Actions)
+
+The `.github/workflows/publish.yml` workflow triggers on GitHub Releases. To publish via CI:
+
+1. Add your PSGallery API key as a GitHub Secret named `PSGALLERY_API_KEY` (repository settings → Secrets → Actions).
+2. Create a release on GitHub; the workflow will automatically run tests, lint, validate, and publish to PSGallery.
+
 ## Design notes (short)
 
 - **No script-scope globals.** A single module-scope dictionary maps server → default

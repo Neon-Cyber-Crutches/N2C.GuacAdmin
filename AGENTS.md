@@ -19,7 +19,9 @@ The workspace contains **research material** (cloned/downloaded during design) p
 | Path | What it is |
 |---|---|
 | [`build.yml`](build.yml) | Build configuration (dependencies, test paths, lint settings, workflow definitions) parsed by `build.ps1` via PowerShell-Yaml |
-| [`build.ps1`](build.ps1) | Bootstrap & build script: downloads dependencies to `output/RequiredModules`, overrides `PSModulePath` to prefer those versions, runs Pester tests and PSScriptAnalyzer lint via named tasks (`noop`, `test`, `test_unit`, `test_integration`, `lint`) |
+| [`build.ps1`](build.ps1) | Bootstrap & build script: downloads dependencies to `output/RequiredModules`, overrides `PSModulePath` to prefer those versions, runs Pester tests and PSScriptAnalyzer lint via named tasks (`noop`, `test`, `test_unit`, `test_integration`, `lint`, `publish_validate`, `publish_dry_run`, `publish`, `version_bump`) |
+| [`.github/workflows/publish.yml`](.github/workflows/publish.yml) | GitHub Actions workflow: publishes module to PSGallery on release (uses `PSGALLERY_API_KEY` secret) |
+| [`.psgallerykey`](.psgallerykey) | PSGallery API key for local publishing (gitignored; see `.psgallerykey.example` for template) |
 | [`output/`](output/) | Build artifacts and bootstrapped build dependencies (`output/RequiredModules`). Gitignored. |
 | [`ANALYSIS.md`](ANALYSIS.md) | Research findings: how Guacamole sessions actually work, full problem catalog of the legacy module, architecture recommendations |
 | [`ANALYSIS/guacamole-client-1.6.0/`](ANALYSIS/guacamole-client-1.6.0/) | **Official** Apache Guacamole 1.6.0 source (authoritative reference for REST endpoints and the protocol). Key files: `guacamole/src/main/java/org/apache/guacamole/rest/**` (REST), `guacamole/src/main/java/org/apache/guacamole/tunnel/**` (tunnel params), `guacamole-common/src/main/java/org/apache/guacamole/protocol/ConfiguredGuacamoleSocket.java` (handshake), `guacamole-ext/src/main/resources/org/apache/guacamole/protocols/*.json` (protocol schemas) |
@@ -66,6 +68,10 @@ The project uses a custom build system based on the [Sampler](https://github.com
 - `test_integration` — run integration tests only (Pester + mock server)
 - `test` — run unit + integration tests
 - `lint` — run PSScriptAnalyzer lint
+- `publish_validate` — validate module manifest and structure for PSGallery publishing
+- `publish_dry_run` — test + lint + publish_validate (no actual publish)
+- `publish` — full publish pipeline: test + lint + validate + Publish-Module to PSGallery
+- `version_bump` — bump module version in manifest (requires `-BumpType major|minor|patch`)
 - `.` (default) — run the default workflow defined in `build.yml` (currently `test` + `lint`)
 
 **Usage:**
@@ -74,9 +80,15 @@ pwsh ./build.ps1              # default workflow (test + lint)
 pwsh ./build.ps1 test         # unit + integration tests
 pwsh ./build.ps1 lint         # PSScriptAnalyzer only
 pwsh ./build.ps1 noop         # bootstrap only
+pwsh ./build.ps1 publish_validate  # validate module for PSGallery
+pwsh ./build.ps1 publish_dry_run   # test + lint + publish_validate
+pwsh ./build.ps1 publish      # full publish pipeline
+pwsh ./build.ps1 version_bump -BumpType patch  # bump version
 ```
 
 The `run-tests.ps1` and `run-lint.ps1` scripts in the module directory remain as standalone runners for quick iteration; `build.ps1` wraps them with dependency management.
+
+**Publishing:** The `publish` task runs the full validation pipeline before publishing to PSGallery. API key resolution priority: `-ApiKey` parameter > `.psgallerykey` file (gitignored) > `PSGALLERY_API_KEY` environment variable. The GitHub Actions workflow (`.github/workflows/publish.yml`) triggers on release published and uses the `PSGALLERY_API_KEY` secret.
 
 ### Module layout
 

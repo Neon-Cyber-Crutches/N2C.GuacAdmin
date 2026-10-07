@@ -49,33 +49,32 @@ function Remove-GuacConnection {
         [object] $InputObject
     )
 
-    begin {
-        $pendingId = [string]::Empty
-    }
-
     process {
-            if ($null -ne $InputObject) {
-                $pendingId = Get-GuacIdentifier -Object $InputObject
-                # DataSource resolution priority: explicit param > piped object > session default
-                if ([string]::IsNullOrWhiteSpace($DataSource)) {
-                    $pipedDs = Get-GuacDataSourceFromObject -Object $InputObject
-                    if (-not [string]::IsNullOrWhiteSpace($pipedDs)) {
-                        $DataSource = $pipedDs
-                    }
+        # Determine target ID: -Id parameter takes precedence over piped object's identifier
+        $targetId = $Id
+        $dataSourceForThis = $DataSource
+
+        if ($null -ne $InputObject) {
+            # Only use piped identifier if -Id was not explicitly provided
+            if ([string]::IsNullOrWhiteSpace($targetId)) {
+                $targetId = Get-GuacIdentifier -Object $InputObject
+            }
+            # DataSource resolution priority: explicit param > piped object > session default
+            if ([string]::IsNullOrWhiteSpace($dataSourceForThis)) {
+                $pipedDs = Get-GuacDataSourceFromObject -Object $InputObject
+                if (-not [string]::IsNullOrWhiteSpace($pipedDs)) {
+                    $dataSourceForThis = $pipedDs
                 }
             }
         }
-    
-        end {
-            $targetId = $Id
-            if ([string]::IsNullOrWhiteSpace($targetId)) { $targetId = $pendingId }
+
         if ([string]::IsNullOrWhiteSpace($targetId)) {
             throw ($script:GuacRestExceptionType::new(
                 'Remove-GuacConnection requires the connection identifier: supply -Id or pipe a connection object.'
             ))
         }
 
-        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $DataSource -CmdletName 'Remove-GuacConnection'
+        $ctx = Resolve-GuacSessionContext -Session $Session -Server $Server -DataSource $dataSourceForThis -CmdletName 'Remove-GuacConnection'
 
         if (-not ($PSCmdlet.ShouldProcess(('connection {0}' -f $targetId), 'Delete Guacamole connection (DELETE connections/{id})'))) {
             return

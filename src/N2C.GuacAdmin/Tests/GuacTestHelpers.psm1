@@ -33,10 +33,21 @@ function Start-GuacTestMock {
     if (-not $pwsh) { $pwsh = (Get-Command powershell) }
 
     $argList = @('-NoProfile', '-File', $scriptPath, '-Port', [string]$port, '-LogFile', $logFile)
-    $process = Start-Process -FilePath $pwsh.Source -ArgumentList $argList `
-        -PassThru -WindowStyle Hidden `
-        -RedirectStandardOutput (Join-Path ([System.IO.Path]::GetTempPath()) ('guacmock-out-' + [System.Guid]::NewGuid().ToString('N') + '.txt')) `
-        -RedirectStandardError (Join-Path ([System.IO.Path]::GetTempPath()) ('guacmock-err-' + [System.Guid]::NewGuid().ToString('N') + '.txt'))
+    # -WindowStyle is Windows-only; on Linux/macOS Start-Process has no window concept.
+    # Use OS detection via .NET RuntimeInformation (works on PS 5.1 and 7.x, all platforms).
+    $onWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+    if ($onWindows) {
+        $process = Start-Process -FilePath $pwsh.Source -ArgumentList $argList `
+            -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path ([System.IO.Path]::GetTempPath()) ('guacmock-out-' + [System.Guid]::NewGuid().ToString('N') + '.txt')) `
+            -RedirectStandardError (Join-Path ([System.IO.Path]::GetTempPath()) ('guacmock-err-' + [System.Guid]::NewGuid().ToString('N') + '.txt'))
+    }
+    else {
+        $process = Start-Process -FilePath $pwsh.Source -ArgumentList $argList `
+            -PassThru `
+            -RedirectStandardOutput (Join-Path ([System.IO.Path]::GetTempPath()) ('guacmock-out-' + [System.Guid]::NewGuid().ToString('N') + '.txt')) `
+            -RedirectStandardError (Join-Path ([System.IO.Path]::GetTempPath()) ('guacmock-err-' + [System.Guid]::NewGuid().ToString('N') + '.txt'))
+    }
 
     # Wait for the listener to come up.
     $baseUrl = ('http://127.0.0.1:{0}/guacamole' -f $port)

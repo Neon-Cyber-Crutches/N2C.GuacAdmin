@@ -1,7 +1,7 @@
 @{
     # Identity
     RootModule        = 'N2C.GuacAdmin.psm1'
-    ModuleVersion     = '1.0.0'
+    ModuleVersion     = '1.0.1'
     GUID              = 'd9c1a2b3-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
     Author            = 'ahpooch'
     CompanyName       = 'Neon Cyber Crutches'
@@ -49,6 +49,19 @@
             LicenseUri = 'https://github.com/Neon-Cyber-Crutches/N2C.GuacAdmin/blob/main/LICENSE'
 
             ReleaseNotes = @'
+1.0.1 — bug fixes
+
+- Remove-GuacConnection: piping multiple connections now deletes all of them
+  (previously only the last one was deleted because the deletion logic was in
+  the end block). Deletion now occurs in the process block, operating on each
+  piped object individually. (#46, #47)
+- Get-GuacConnection now returns connection parameters (host, port, credentials,
+  guac-* options) by fetching them from the /parameters sub-resource. Added
+  new -IncludeParameters switch (default $true) to skip parameter fetching
+  for better performance when listing many connections. If a user lacks
+  UPDATE/ADMINISTER permission on a connection, parameter fetching fails
+  silently with a Verbose message and the connection is still returned. (#48)
+
 1.0.0 — first stable release, all 5 phases complete (163 tests green)
 
 Phase 1 — Scaffold, transport, auth/session lifecycle

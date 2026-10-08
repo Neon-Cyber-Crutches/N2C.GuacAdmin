@@ -21,9 +21,14 @@ function Get-GuacConnection {
         resolution for raw API data.
 
         The connection parameters (host, port, credentials, guac-* options)
-        are returned as the "parameters" property; retrieving them requires
-        UPDATE permission on the connection (or ADMINISTER), which the server
-        enforces in ConnectionResource.getConnectionParameters.
+        are returned as the "parameters" property by default, which the cmdlet
+        fetches from the separate /parameters sub-resource endpoint for each
+        connection. This requires UPDATE permission on the connection (or
+        ADMINISTER), which the server enforces in
+        ConnectionResource.getConnectionParameters. Use the -IncludeParameters
+        switch to explicitly enable or disable parameter fetching; the default
+        is to include them. Disable it for performance when listing many
+        connections and only the base metadata is needed.
 
         Filter parameters (-Name, -Protocol) perform client-side filtering:
         the full collection is fetched and then filtered locally. This is
@@ -60,6 +65,12 @@ function Get-GuacConnection {
 
     .EXAMPLE
         Get-GuacConnection -ResolveParentGroupName:$false
+
+    .EXAMPLE
+        Get-GuacConnection -IncludeParameters:$false
+
+    .EXAMPLE
+        Get-GuacConnection | Select-Object Name, Protocol, @{N='Host';E={$_.Parameters['hostname']}}
     #>
     [CmdletBinding()]
     [OutputType([PSCustomObject])]
@@ -89,8 +100,15 @@ function Get-GuacConnection {
         [string] $Protocol = [string]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [bool] $ResolveParentGroupName = $true
+        [bool] $ResolveParentGroupName = $true,
+
+        [Parameter(Mandatory = $false)]
+        [switch] $IncludeParameters
     )
+
+    # Default to including parameters for intuitive behavior; users can disable
+    # for performance with large connection lists
+    if (-not $IncludeParameters.IsPresent) { $IncludeParameters = $true }
 
     # Handle -DataSource All by iterating over all available data sources
         if ($DataSource -ieq 'All') {
@@ -105,6 +123,18 @@ function Get-GuacConnection {
                 try {
                     if (-not [string]::IsNullOrWhiteSpace($Id)) {
                         $conn = Invoke-GuacDirectory -Context $singleCtx -Collection 'connections' -Action 'Get' -Id $Id
+                        if ($IncludeParameters) {
+                            try {
+                                $paramsPath = Resolve-GuacContextUrl -DataSource $singleCtx.DataSource -Collection 'connections' -Id $Id -SubPath 'parameters'
+                                $parameters = Invoke-GuacRest -Server $singleCtx.Server -Token $singleCtx.Token -Method GET -Path $paramsPath
+                                if ($null -ne $parameters) {
+                                    $conn = $conn | Add-Member -NotePropertyName 'parameters' -NotePropertyValue $parameters -PassThru
+                                }
+                            }
+                            catch {
+                                Write-Verbose ('Get-GuacConnection: could not fetch parameters for connection {0}: {1}' -f ($Id, $_.Exception.Message))
+                            }
+                        }
                         if ($conn) { Write-Output $conn }
                     }
                     else {
@@ -138,6 +168,20 @@ function Get-GuacConnection {
                                 }
                             }
                         }
+                        if ($IncludeParameters -and $connections.Count -gt 0) {
+                            foreach ($conn in $connections) {
+                                try {
+                                    $paramsPath = Resolve-GuacContextUrl -DataSource $singleCtx.DataSource -Collection 'connections' -Id $conn.Identifier -SubPath 'parameters'
+                                    $parameters = Invoke-GuacRest -Server $singleCtx.Server -Token $singleCtx.Token -Method GET -Path $paramsPath
+                                    if ($null -ne $parameters) {
+                                        $conn | Add-Member -NotePropertyName 'parameters' -NotePropertyValue $parameters
+                                    }
+                                }
+                                catch {
+                                    Write-Verbose ('Get-GuacConnection: could not fetch parameters for connection {0}: {1}' -f ($conn.Identifier, $_.Exception.Message))
+                                }
+                            }
+                        }
                         foreach ($conn in $connections) { Write-Output $conn }
                     }
                 }
@@ -155,6 +199,18 @@ function Get-GuacConnection {
             Write-Warning 'Both -Id and filter parameters (-Name/-Protocol) were specified. -Id takes precedence; filters are ignored.'
         }
         $conn = Invoke-GuacDirectory -Context $ctx -Collection 'connections' -Action 'Get' -Id $Id
+        if ($IncludeParameters) {
+            try {
+                $paramsPath = Resolve-GuacContextUrl -DataSource $ctx.DataSource -Collection 'connections' -Id $Id -SubPath 'parameters'
+                $parameters = Invoke-GuacRest -Server $ctx.Server -Token $ctx.Token -Method GET -Path $paramsPath
+                if ($null -ne $parameters) {
+                    $conn = $conn | Add-Member -NotePropertyName 'parameters' -NotePropertyValue $parameters -PassThru
+                }
+            }
+            catch {
+                Write-Verbose ('Get-GuacConnection: could not fetch parameters for connection {0}: {1}' -f ($Id, $_.Exception.Message))
+            }
+        }
         if ($ResolveParentGroupName -and -not [string]::IsNullOrWhiteSpace($conn.ParentIdentifier)) {
             if ($conn.ParentIdentifier -eq 'ROOT') {
                 $conn | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue 'ROOT'
@@ -203,6 +259,20 @@ function Get-GuacConnection {
                 else {
                     $conn | Add-Member -NotePropertyName ParentGroupName -NotePropertyValue $groupMap[$conn.ParentIdentifier]
                 }
+            }
+        }
+    }
+    if ($IncludeParameters -and $connections.Count -gt 0) {
+        foreach ($conn in $connections) {
+            try {
+                $paramsPath = Resolve-GuacContextUrl -DataSource $ctx.DataSource -Collection 'connections' -Id $conn.Identifier -SubPath 'parameters'
+                $parameters = Invoke-GuacRest -Server $ctx.Server -Token $ctx.Token -Method GET -Path $paramsPath
+                if ($null -ne $parameters) {
+                    $conn | Add-Member -NotePropertyName 'parameters' -NotePropertyValue $parameters
+                }
+            }
+            catch {
+                Write-Verbose ('Get-GuacConnection: could not fetch parameters for connection {0}: {1}' -f ($conn.Identifier, $_.Exception.Message))
             }
         }
     }
